@@ -23,11 +23,7 @@ const About: React.FC = () => {
           ref={imageRef}
           className={`about__image-wrap ${imgVisible ? 'reveal reveal--visible' : 'reveal'}`}
         >
-          {/* Замените src на реальное фото автора */}
-          <div className="about__image-placeholder">
-            <span>Фото автора</span>
-          </div>
-          {/* <img src="/images/author.jpg" alt="Автор" className="about__image" /> */}
+          <img src="/images/photo.jpg" alt="Яна - автор" className="about__image" />
         </div>
 
         <div
@@ -37,7 +33,7 @@ const About: React.FC = () => {
           <h2 className="section-title">Об авторе</h2>
           <div className="about__divider" />
           <p>
-            Меня зовут Анна. Я&nbsp;рисую то, что чувствую&nbsp;— линии,
+            Меня зовут Яна. Я&nbsp;рисую то, что чувствую&nbsp;— линии,
             которые рождаются сами, цвета, которые приходят из&nbsp;тишины.
           </p>
           <p>

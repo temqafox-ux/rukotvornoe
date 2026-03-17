@@ -61,7 +61,7 @@ const Contact: React.FC = () => {
               </svg>
             </a>
             <a
-              href="https://t.me"
+              href="https://t.me/rukotvornoe_yana"
               target="_blank"
               rel="noopener noreferrer"
               className="contact__social-link"
@@ -69,18 +69,6 @@ const Contact: React.FC = () => {
             >
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M21 3L1 10l7 3m13-10l-7 14-6-7m13-7l-13 7" />
-              </svg>
-            </a>
-            <a
-              href="https://behance.net"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="contact__social-link"
-              aria-label="Behance"
-            >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                <circle cx="12" cy="12" r="3" />
               </svg>
             </a>
           </div>

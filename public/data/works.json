@@ -1,57 +1,57 @@
 [
   {
     "id": 1,
-    "title": "Пример работы",
-    "category": "Картина",
+    "title": "Тишина линии",
+    "category": "Графика",
     "color": "#e8ddd3",
     "src": "/images/1.jpg"
   },
   {
     "id": 2,
-    "title": "Пример работы",
-    "category": "Картина",
+    "title": "Пауза между вдохами",
+    "category": "Акварель",
     "color": "#d5d0cb",
     "src": "/images/2.jpg"
   },
   {
     "id": 3,
-    "title": "Пример работы",
-    "category": "Картина",
+    "title": "Серебро тени",
+    "category": "Тушь",
     "color": "#e2dcd4",
     "src": "/images/3.jpg"
   },
   {
     "id": 4,
-    "title": "Пример работы",
-    "category": "Картина",
+    "title": "Тёплый штрих",
+    "category": "Акварель",
     "color": "#ddd8d0",
     "src": "/images/4.jpg"
   },
   {
     "id": 5,
-    "title": "Пример работы",
-    "category": "Картина",
+    "title": "Контур чувств",
+    "category": "Графика",
     "color": "#d8d3cc",
     "src": "/images/5.jpg"
   },
   {
     "id": 6,
-    "title": "Пример работы",
-    "category": "Картина",
+    "title": "Дыхание момента",
+    "category": "Карандаш",
     "color": "#dfe0de",
     "src": "/images/6.jpg"
   },
   {
     "id": 7,
-    "title": "Пример работы",
-    "category": "Картина",
+    "title": "Лёгкость воды",
+    "category": "Тушь",
     "color": "#e5dfda",
     "src": "/images/7.jpg"
   },
   {
     "id": 8,
-    "title": "Пример работы",
-    "category": "Картина",
+    "title": "Свет на бумаге",
+    "category": "Акварель",
     "color": "#dbd5ce",
     "src": "/images/8.jpg"
   }

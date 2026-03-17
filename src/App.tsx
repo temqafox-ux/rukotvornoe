@@ -1,18 +1,16 @@
 import React from 'react';
-import Hero from './components/Hero';
-import About from './components/About';
-import Gallery from './components/Gallery';
-import Contact from './components/Contact';
+import { Navigate, Route, Routes } from 'react-router-dom';
+import HomePage from './pages/HomePage';
+import WorksPage from './pages/WorksPage';
 import './App.css';
 
 const App: React.FC = () => {
   return (
-    <main>
-      <Hero />
-      <About />
-      <Gallery />
-      <Contact />
-    </main>
+    <Routes>
+      <Route path="/" element={<HomePage />} />
+      <Route path="/works" element={<WorksPage />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 };
 

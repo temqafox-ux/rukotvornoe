@@ -225,7 +225,7 @@ const Gallery: React.FC = () => {
         });
       }
     }
-  }, [selectedWork]);
+  }, [selectedWork, works]);
 
   const scroll = (direction: 'left' | 'right') => {
     if (!gridRef.current) return;

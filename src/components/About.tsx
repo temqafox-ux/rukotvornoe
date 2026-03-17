@@ -2,7 +2,7 @@ import React from 'react';
 import { useReveal } from '../hooks/useReveal';
 
 const About: React.FC = () => {
-  const { ref: sectionRef, isVisible } = useReveal<HTMLElement>({
+  const { ref: sectionRef } = useReveal<HTMLElement>({
     threshold: 0.2,
   });
 

@@ -845,7 +845,7 @@
 .work-modal__dialog {
   position: relative;
   z-index: 1201;
-  width: min(920px, 92vw);
+  width: min(920px, 82vw);
   max-height: 86vh;
   background: var(--color-card-bg);
   overflow: hidden;
@@ -869,40 +869,45 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  padding-bottom: 4px;
 }
 
 .work-modal__nav {
-  position: absolute;
+  position: fixed;
   top: 50%;
   transform: translateY(-50%);
   z-index: 1203;
-  width: 44px;
-  height: 44px;
-  border: 1px solid var(--color-border);
-  background: rgba(255, 255, 255, 0.95);
+  width: 48px;
+  height: 48px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-text);
-  border-radius: 2px;
+  color: #fff;
+  border-radius: 50%;
   transition:
     background-color 0.3s ease,
-    transform 0.2s ease;
+    transform 0.2s ease,
+    border-color 0.3s ease;
 }
 
 .work-modal__nav:hover {
-  background: var(--color-text);
-  color: var(--color-card-bg);
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.45);
+  color: #fff;
   transform: translateY(-50%) scale(1.08);
 }
 
 .work-modal__nav--prev {
-  left: 1rem;
+  left: calc((100vw - min(920px, 82vw)) / 2 - 56px);
 }
 
 .work-modal__nav--next {
-  right: 1rem;
+  right: calc((100vw - min(920px, 82vw)) / 2 - 56px);
 }
 
 .work-modal__counter {

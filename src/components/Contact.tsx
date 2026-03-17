@@ -1,10 +1,7 @@
-import React, { useState, FormEvent } from 'react';
+import React from 'react';
 import { useReveal } from '../hooks/useReveal';
 
 const Contact: React.FC = () => {
-  const [form, setForm] = useState({ name: '', email: '', message: '' });
-  const [sent, setSent] = useState(false);
-
   const { ref: headerRef, isVisible: headerVisible } = useReveal<HTMLDivElement>({
     threshold: 0.3,
   });
@@ -13,15 +10,6 @@ const Contact: React.FC = () => {
     threshold: 0.2,
     delay: 200,
   });
-
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault();
-    // Здесь подключить отправку (EmailJS / Formspree / свой бэкенд)
-    console.log('Form submitted:', form);
-    setSent(true);
-    setTimeout(() => setSent(false), 4000);
-    setForm({ name: '', email: '', message: '' });
-  };
 
   return (
     <section className="contact" id="contact">
@@ -73,44 +61,6 @@ const Contact: React.FC = () => {
             </a>
           </div>
         </div>
-
-        <form className="contact__form" onSubmit={handleSubmit}>
-          <h3 className="contact__form-title">Написать автору</h3>
-
-          <div className="contact__field">
-            <input
-              type="text"
-              placeholder="Ваше имя"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              required
-            />
-          </div>
-
-          <div className="contact__field">
-            <input
-              type="email"
-              placeholder="E-mail"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              required
-            />
-          </div>
-
-          <div className="contact__field">
-            <textarea
-              placeholder="Сообщение"
-              rows={4}
-              value={form.message}
-              onChange={(e) => setForm({ ...form, message: e.target.value })}
-              required
-            />
-          </div>
-
-          <button type="submit" className="contact__submit" disabled={sent}>
-            {sent ? 'Отправлено ✓' : 'Отправить'}
-          </button>
-        </form>
       </div>
 
       <footer className="footer">

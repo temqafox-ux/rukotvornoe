@@ -5,20 +5,9 @@ interface ArtWork {
   id: number;
   title: string;
   category: string;
-  color: string; // Заглушка — заменить на реальный src
-  src: string; // Путь к изображению
+  color: string;
+  src: string;
 }
-
-const works: ArtWork[] = [
-  { id: 1, title: 'Утренний свет', category: 'Акварель', color: '#e8ddd3', src: '/images/1.jpg' },
-  { id: 2, title: 'Тишина', category: 'Графика', color: '#d5d0cb', src: '/images/2.jpg' },
-  { id: 3, title: 'Ветер в поле', category: 'Акварель', color: '#e2dcd4', src: '/images/3.jpg' },
-  { id: 4, title: 'Набросок. Руки', category: 'Скетч', color: '#ddd8d0', src: '/images/4.jpg' },
-  { id: 5, title: 'Старый мост', category: 'Тушь', color: '#d8d3cc', src: '/images/5.jpg' },
-  { id: 6, title: 'Море зимой', category: 'Акварель', color: '#dfe0de', src: '/images/6.jpg' },
-  { id: 7, title: 'Птица', category: 'Графика', color: '#e5dfda', src: '/images/7.jpg' },
-  { id: 8, title: 'Профиль', category: 'Скетч', color: '#dbd5ce', src: '/images/8.jpg' },
-];
 
 const GalleryCard: React.FC<{ work: ArtWork; index: number; onOpen: (work: ArtWork) => void }> = ({
   work,
@@ -178,10 +167,25 @@ const GalleryModal: React.FC<{ work: ArtWork | null; onClose: () => void; allWor
 
 const Gallery: React.FC = () => {
   const [selectedWork, setSelectedWork] = useState<ArtWork | null>(null);
+  const [works, setWorks] = useState<ArtWork[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const gridRef = useRef<HTMLDivElement>(null);
   const { ref: headerRef, isVisible: headerVisible } = useReveal<HTMLDivElement>({
     threshold: 0.3,
   });
+
+  useEffect(() => {
+    fetch('/data/works.json')
+      .then(response => response.json())
+      .then(data => {
+        setWorks(data);
+        setIsLoading(false);
+      })
+      .catch(error => {
+        console.error('Ошибка загрузки работ:', error);
+        setIsLoading(false);
+      });
+  }, []);
 
   useEffect(() => {
     const handleSelectWork = (event: Event) => {
@@ -236,6 +240,20 @@ const Gallery: React.FC = () => {
       behavior: 'smooth',
     });
   };
+
+  if (isLoading) {
+    return (
+      <section className="gallery" id="gallery">
+        <div className="gallery__header">
+          <h2 className="section-title">Работы</h2>
+          <div className="section-divider" />
+        </div>
+        <div className="gallery__wrapper">
+          <p style={{ padding: '2rem', textAlign: 'center' }}>Загрузка...</p>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="gallery" id="gallery">

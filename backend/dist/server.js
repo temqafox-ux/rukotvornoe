@@ -1,7 +1,9 @@
 import 'dotenv/config';
+import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import cors from 'cors';
 import express from 'express';
 import multer from 'multer';
+import fs from 'node:fs/promises';
 import path from 'node:path';
 import sharp from 'sharp';
 import { z } from 'zod';
@@ -22,6 +24,22 @@ const allowedOrigins = (process.env.CLIENT_ORIGIN ?? 'http://localhost:3000')
     .filter(Boolean);
 const uploadMaxWidth = Math.max(800, Math.min(Number(process.env.UPLOAD_MAX_WIDTH ?? 1800), 4000));
 const uploadQuality = Math.max(60, Math.min(Number(process.env.UPLOAD_QUALITY ?? 82), 95));
+const r2AccountId = process.env.R2_ACCOUNT_ID;
+const r2Bucket = process.env.R2_BUCKET;
+const r2AccessKeyId = process.env.R2_ACCESS_KEY_ID;
+const r2SecretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
+const r2PublicBaseUrl = process.env.R2_PUBLIC_BASE_URL?.replace(/\/+$/, '');
+const isR2Enabled = Boolean(r2AccountId && r2Bucket && r2AccessKeyId && r2SecretAccessKey && r2PublicBaseUrl);
+const r2Client = isR2Enabled
+    ? new S3Client({
+        region: 'auto',
+        endpoint: `https://${r2AccountId}.r2.cloudflarestorage.com`,
+        credentials: {
+            accessKeyId: r2AccessKeyId,
+            secretAccessKey: r2SecretAccessKey
+        }
+    })
+    : null;
 const publicDir = path.resolve(process.cwd(), '..', 'public');
 app.use(cors({
     origin: (origin, callback) => {
@@ -96,8 +114,7 @@ const requireAdmin = async (authorization) => {
 };
 const saveUpload = async (file) => {
     const filename = `${createId('asset')}.webp`;
-    const destination = path.join(getUploadsDir(), filename);
-    await sharp(file.buffer)
+    const optimizedBuffer = await sharp(file.buffer)
         .rotate()
         .resize({
         width: uploadMaxWidth,
@@ -105,7 +122,20 @@ const saveUpload = async (file) => {
         withoutEnlargement: true
     })
         .webp({ quality: uploadQuality })
-        .toFile(destination);
+        .toBuffer();
+    if (isR2Enabled && r2Client && r2Bucket && r2PublicBaseUrl) {
+        const key = `uploads/${filename}`;
+        await r2Client.send(new PutObjectCommand({
+            Bucket: r2Bucket,
+            Key: key,
+            Body: optimizedBuffer,
+            ContentType: 'image/webp',
+            CacheControl: 'public, max-age=31536000, immutable'
+        }));
+        return `${r2PublicBaseUrl}/${key}`;
+    }
+    const destination = path.join(getUploadsDir(), filename);
+    await fs.writeFile(destination, optimizedBuffer);
     return `/uploads/${filename}`;
 };
 app.get('/api/health', (_req, res) => {

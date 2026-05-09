@@ -2,6 +2,7 @@ import React, { FormEvent, useCallback, useEffect, useLayoutEffect, useMemo, use
 import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
+import { openAppOrWeb } from '../app/openAppOrWeb';
 import {
   Folder,
   Work,
@@ -645,14 +646,33 @@ const WorksPage: React.FC = () => {
               <a href="mailto:elfin.v@gmail.com">elfin.v@gmail.com</a>
             </div>
             <div className="contact__socials">
-              <a href="https://instagram.com/gulyai_shalnaya" target="_blank" rel="noopener noreferrer" className="contact__social-link" aria-label="Instagram">
+              <a
+                href="https://instagram.com/gulyai_shalnaya"
+                className="contact__social-link"
+                aria-label="Instagram"
+                onClick={(event) => {
+                  event.preventDefault();
+                  openAppOrWeb(
+                    'instagram://user?username=gulyai_shalnaya',
+                    'https://instagram.com/gulyai_shalnaya'
+                  );
+                }}
+              >
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                   <rect x="2" y="2" width="20" height="20" rx="5" />
                   <circle cx="12" cy="12" r="5" />
                   <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
                 </svg>
               </a>
-              <a href="https://t.me/rukotvornoe_yana" target="_blank" rel="noopener noreferrer" className="contact__social-link" aria-label="Telegram">
+              <a
+                href="https://t.me/rukotvornoe_yana"
+                className="contact__social-link"
+                aria-label="Telegram"
+                onClick={(event) => {
+                  event.preventDefault();
+                  openAppOrWeb('tg://resolve?domain=rukotvornoe_yana', 'https://t.me/rukotvornoe_yana');
+                }}
+              >
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                   <path d="M21 3L1 10l7 3m13-10l-7 14-6-7m13-7l-13 7" />
                 </svg>

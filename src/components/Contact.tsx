@@ -1,4 +1,5 @@
 import React from 'react';
+import { openAppOrWeb } from '../app/openAppOrWeb';
 import { useReveal } from '../hooks/useReveal';
 
 const Contact: React.FC = () => {
@@ -37,10 +38,15 @@ const Contact: React.FC = () => {
           <div className="contact__socials">
             <a
               href="https://instagram.com/gulyai_shalnaya"
-              target="_blank"
-              rel="noopener noreferrer"
               className="contact__social-link"
               aria-label="Instagram"
+              onClick={(event) => {
+                event.preventDefault();
+                openAppOrWeb(
+                  'instagram://user?username=gulyai_shalnaya',
+                  'https://instagram.com/gulyai_shalnaya'
+                );
+              }}
             >
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <rect x="2" y="2" width="20" height="20" rx="5" />
@@ -50,10 +56,12 @@ const Contact: React.FC = () => {
             </a>
             <a
               href="https://t.me/rukotvornoe_yana"
-              target="_blank"
-              rel="noopener noreferrer"
               className="contact__social-link"
               aria-label="Telegram"
+              onClick={(event) => {
+                event.preventDefault();
+                openAppOrWeb('tg://resolve?domain=rukotvornoe_yana', 'https://t.me/rukotvornoe_yana');
+              }}
             >
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M21 3L1 10l7 3m13-10l-7 14-6-7m13-7l-13 7" />

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
+import { openAppOrWeb } from '../app/openAppOrWeb';
 import Hero from '../components/Hero';
 import About from '../components/About';
 import QuoteBlocks from '../components/QuoteBlocks';
@@ -87,9 +88,11 @@ const HomePage: React.FC = () => {
               className="home-contact-cta__link"
               role="menuitem"
               href="https://t.me/rukotvornoe_yana"
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => setIsContactMenuOpen(false)}
+              onClick={(event) => {
+                event.preventDefault();
+                setIsContactMenuOpen(false);
+                openAppOrWeb('tg://resolve?domain=rukotvornoe_yana', 'https://t.me/rukotvornoe_yana');
+              }}
             >
               Telegram
             </a>
@@ -105,9 +108,14 @@ const HomePage: React.FC = () => {
               className="home-contact-cta__link"
               role="menuitem"
               href="https://instagram.com/gulyai_shalnaya"
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => setIsContactMenuOpen(false)}
+              onClick={(event) => {
+                event.preventDefault();
+                setIsContactMenuOpen(false);
+                openAppOrWeb(
+                  'instagram://user?username=gulyai_shalnaya',
+                  'https://instagram.com/gulyai_shalnaya'
+                );
+              }}
             >
               Instagram
             </a>

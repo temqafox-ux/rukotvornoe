@@ -47,7 +47,7 @@ const AdminPage: React.FC = () => {
         <div className="admin-auth-card__top">
           <Link to="/" className="btn btn--ghost">На главную</Link>
         </div>
-        <h1 className="section-title">Вход в админку</h1>
+        <h1 className="section-title">ADMIN PANEL</h1>
         <div className="section-divider" />
 
         <form className="admin-form" onSubmit={onSubmit}>

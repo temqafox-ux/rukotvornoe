@@ -84,6 +84,15 @@
   box-shadow: none;
 }
 
+.btn:disabled {
+  cursor: not-allowed;
+  background: #ece8e2;
+  color: #9b9288;
+  border-color: #d9d1c8;
+  box-shadow: none;
+  transform: none;
+}
+
 .btn--primary {
   background: rgba(196, 181, 164, 0.22);
   border-color: rgba(196, 181, 164, 0.55);
@@ -792,12 +801,23 @@
   text-align: center;
 }
 
+.works-page__more-wrap {
+  max-width: var(--max-width);
+  margin: 1.2rem auto 0;
+  display: flex;
+  justify-content: center;
+}
+
 .works-grid {
   max-width: var(--max-width);
   margin: 0 auto;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1.6rem;
+}
+
+.works-grid__card--skeleton {
+  animation: none;
 }
 
 .works-grid__card {
@@ -843,6 +863,20 @@
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.works-grid__img--skeleton,
+.works-grid__line-skeleton {
+  position: relative;
+  background: linear-gradient(100deg, #f3efe9 20%, #fff 50%, #f3efe9 80%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s linear infinite;
+}
+
+.works-grid__line-skeleton {
+  height: 22px;
+  width: 70%;
+  border-radius: 12px;
 }
 
 .works-grid__img img {
@@ -1011,6 +1045,7 @@
   font-size: 1.5rem;
   margin-bottom: 0.5rem;
   color: var(--color-text);
+  padding-right: 2.8rem;
 }
 
 .admin-form {
@@ -1039,6 +1074,31 @@
 .admin-form__field textarea {
   min-height: 90px;
   resize: vertical;
+}
+
+.works-mobile-actions {
+  display: none;
+}
+
+.works-page__confirm-text {
+  margin: 0.25rem 0 1rem;
+  color: var(--color-text-light);
+  line-height: 1.55;
+}
+
+.works-page__confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.7rem;
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 /* ==============================
@@ -1459,5 +1519,21 @@
 
   .work-modal__dialog--form {
     width: 95vw;
+  }
+
+  .works-mobile-actions {
+    position: fixed;
+    left: 0.75rem;
+    right: 0.75rem;
+    bottom: calc(0.75rem + env(safe-area-inset-bottom));
+    z-index: 920;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.6rem;
+    padding: 0.45rem;
+    border: 1px solid var(--color-border);
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
   }
 }

@@ -16,6 +16,15 @@ import {
 } from '../app/contentApi';
 
 const MOBILE_BREAKPOINT = 768;
+const WORKS_PAGE_SIZE = 12;
+const SKELETON_ITEMS_COUNT = 6;
+
+interface ConfirmDialogState {
+  title: string;
+  description: string;
+  confirmLabel: string;
+  action: () => Promise<void>;
+}
 
 const WorksPage: React.FC = () => {
   const [selectedFolder, setSelectedFolder] = useState<Folder | null>(null);
@@ -36,6 +45,9 @@ const WorksPage: React.FC = () => {
   const [editingWork, setEditingWork] = useState<Work | null>(null);
   const [workTitle, setWorkTitle] = useState('');
   const [workFile, setWorkFile] = useState<File | null>(null);
+  const [visibleWorksCount, setVisibleWorksCount] = useState(WORKS_PAGE_SIZE);
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
+  const [isConfirmLoading, setIsConfirmLoading] = useState(false);
 
   const {
     data: folders = [],
@@ -78,6 +90,8 @@ const WorksPage: React.FC = () => {
   }, [selectedWork]);
 
   const works = useMemo(() => folderDetails?.works ?? [], [folderDetails]);
+  const visibleWorks = useMemo(() => works.slice(0, visibleWorksCount), [works, visibleWorksCount]);
+  const hasMoreWorks = visibleWorksCount < works.length;
   const currentIndex = selectedWork ? works.findIndex((work) => work.id === selectedWork.id) : -1;
   const canGoPrev = currentIndex > 0;
   const canGoNext = currentIndex >= 0 && currentIndex < works.length - 1;
@@ -105,6 +119,15 @@ const WorksPage: React.FC = () => {
     toast.error(errorMessage(error));
   };
 
+  const openConfirmDialog = (state: ConfirmDialogState) => {
+    setConfirmDialog(state);
+  };
+
+  const closeConfirmDialog = () => {
+    if (isConfirmLoading) return;
+    setConfirmDialog(null);
+  };
+
   const openCreateFolderModal = () => {
     setEditingFolder(null);
     setFolderTitle('');
@@ -118,6 +141,10 @@ const WorksPage: React.FC = () => {
     setFolderCover(null);
     setIsFolderModalOpen(true);
   };
+
+  useEffect(() => {
+    setVisibleWorksCount(WORKS_PAGE_SIZE);
+  }, [selectedFolder?.id]);
 
   const onLogout = async () => {
     setPendingKey('logout');
@@ -161,23 +188,25 @@ const WorksPage: React.FC = () => {
   };
 
   const onDeleteFolder = async (folder: Folder) => {
-    const confirmed = window.confirm(`Удалить папку "${folder.title}"?`);
-    if (!confirmed) return;
-
-    const actionKey = `delete-folder-${folder.id}`;
-    setPendingKey(actionKey);
-    try {
-      await deleteFolder(folder.id).unwrap();
-      if (selectedFolder?.id === folder.id) {
-        setSelectedFolder(null);
+    openConfirmDialog({
+      title: 'Удалить папку?',
+      description: `Папка "${folder.title}" и все работы внутри будут удалены.`,
+      confirmLabel: 'Удалить',
+      action: async () => {
+        const actionKey = `delete-folder-${folder.id}`;
+        setPendingKey(actionKey);
+        try {
+          await deleteFolder(folder.id).unwrap();
+          if (selectedFolder?.id === folder.id) {
+            setSelectedFolder(null);
+          }
+          await refetchFolders();
+          toast.success('Папка удалена.');
+        } finally {
+          setPendingKey(null);
+        }
       }
-      await refetchFolders();
-      toast.success('Папка удалена.');
-    } catch (error) {
-      notifyError(error);
-    } finally {
-      setPendingKey(null);
-    }
+    });
   };
 
   const onSubmitUploadWorks = async (event: FormEvent<HTMLFormElement>) => {
@@ -237,20 +266,35 @@ const WorksPage: React.FC = () => {
   };
 
   const onDeleteWork = async (work: Work) => {
-    const confirmed = window.confirm(`Удалить работу "${work.title}"?`);
-    if (!confirmed) return;
+    openConfirmDialog({
+      title: 'Удалить работу?',
+      description: `Работа "${work.title}" будет удалена без возможности восстановления.`,
+      confirmLabel: 'Удалить',
+      action: async () => {
+        const actionKey = `delete-work-${work.id}`;
+        setPendingKey(actionKey);
+        try {
+          await deleteWork(work.id).unwrap();
+          await refetchFolderWorks();
+          await refetchFolders();
+          toast.success('Работа удалена.');
+        } finally {
+          setPendingKey(null);
+        }
+      }
+    });
+  };
 
-    const actionKey = `delete-work-${work.id}`;
-    setPendingKey(actionKey);
+  const onConfirmDialogAction = async () => {
+    if (!confirmDialog) return;
+    setIsConfirmLoading(true);
     try {
-      await deleteWork(work.id).unwrap();
-      await refetchFolderWorks();
-      await refetchFolders();
-      toast.success('Работа удалена.');
+      await confirmDialog.action();
+      setConfirmDialog(null);
     } catch (error) {
       notifyError(error);
     } finally {
-      setPendingKey(null);
+      setIsConfirmLoading(false);
     }
   };
 
@@ -314,7 +358,7 @@ const WorksPage: React.FC = () => {
         <>
           <div className="works-page__actions">
             <button type="button" className="btn btn--ghost" onClick={() => setSelectedFolder(null)}>
-              Назад к папкам
+              Назад
             </button>
             {isAdmin && (
               <button
@@ -329,10 +373,17 @@ const WorksPage: React.FC = () => {
           </div>
 
           {isWorksLoading ? (
-            <p className="works-page__loading">Загрузка...</p>
+            <section className="works-grid" aria-label="Загрузка работ">
+              {Array.from({ length: SKELETON_ITEMS_COUNT }).map((_, index) => (
+                <article key={`work-skeleton-${index}`} className="works-grid__card works-grid__card--skeleton">
+                  <div className="works-grid__img works-grid__img--skeleton" />
+                </article>
+              ))}
+            </section>
           ) : (
-            <section className="works-grid" aria-label="Работы в папке">
-              {works.map((work, i) => (
+            <>
+              <section className="works-grid" aria-label="Работы в папке">
+                {visibleWorks.map((work, i) => (
                 <article
                   key={work.id}
                   className="works-grid__card"
@@ -345,7 +396,7 @@ const WorksPage: React.FC = () => {
                     aria-label={work.title}
                   >
                     <div className="works-grid__img">
-                      <img src={toImageUrl(work.imageUrl)} alt={work.title} />
+                      <img src={toImageUrl(work.imageUrl)} alt={work.title} loading="lazy" decoding="async" />
                     </div>
                   </button>
                   {isAdmin && (
@@ -357,12 +408,34 @@ const WorksPage: React.FC = () => {
                     </div>
                   )}
                 </article>
-              ))}
-            </section>
+                ))}
+              </section>
+              {hasMoreWorks && (
+                <div className="works-page__more-wrap">
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => setVisibleWorksCount((count) => count + WORKS_PAGE_SIZE)}
+                    disabled={isAnyActionPending}
+                  >
+                    Показать еще
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </>
       ) : isFoldersLoading ? (
-        <p className="works-page__loading">Загрузка...</p>
+        <section className="works-grid" aria-label="Загрузка папок">
+          {Array.from({ length: SKELETON_ITEMS_COUNT }).map((_, index) => (
+            <article key={`folder-skeleton-${index}`} className="works-grid__card works-grid__card--skeleton">
+              <div className="works-grid__img works-grid__img--skeleton" />
+              <div className="works-grid__info">
+                <div className="works-grid__line-skeleton" />
+              </div>
+            </article>
+          ))}
+        </section>
       ) : (
         <section className="works-grid" aria-label="Папки с работами">
           {folders.map((folder, i) => (
@@ -378,7 +451,7 @@ const WorksPage: React.FC = () => {
                 aria-label={folder.title}
               >
                 <div className="works-grid__img">
-                  <img src={toImageUrl(folder.coverImageUrl)} alt={folder.title} />
+                  <img src={toImageUrl(folder.coverImageUrl)} alt={folder.title} loading="lazy" decoding="async" />
                 </div>
                 <div className="works-grid__info">
                   <h3 className="works-grid__title works-grid__title--folder">{folder.title}</h3>
@@ -453,7 +526,6 @@ const WorksPage: React.FC = () => {
               <img src={selectedImageUrl} alt={selectedWork.title} />
             </div>
             <div className="work-modal__info">
-              <h2 className="work-modal__title">{selectedWork.title}</h2>
               <span className="work-modal__counter">{currentIndex + 1} из {works.length}</span>
             </div>
           </div>
@@ -527,6 +599,43 @@ const WorksPage: React.FC = () => {
                 {pendingKey === `save-work-${editingWork.id}` ? 'Сохраняем...' : 'Сохранить'}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {selectedFolder && (
+        <div className="works-mobile-actions" role="region" aria-label="Быстрые действия">
+          <button type="button" className="btn btn--ghost" onClick={() => setSelectedFolder(null)} disabled={isAnyActionPending}>
+            Назад
+          </button>
+          {isAdmin && (
+            <button
+              type="button"
+              className="btn"
+              onClick={() => setIsUploadModalOpen(true)}
+              disabled={isAnyActionPending || workActionsBusy}
+            >
+              + Фото
+            </button>
+          )}
+        </div>
+      )}
+
+      {confirmDialog && (
+        <div className="work-modal work-modal--open" role="dialog" aria-modal="true">
+          <div className="work-modal__overlay" onClick={closeConfirmDialog} />
+          <div className="work-modal__dialog work-modal__dialog--form">
+            <button className="work-modal__close" onClick={closeConfirmDialog} aria-label="Закрыть">×</button>
+            <h2 className="work-modal__title">{confirmDialog.title}</h2>
+            <p className="works-page__confirm-text">{confirmDialog.description}</p>
+            <div className="works-page__confirm-actions">
+              <button type="button" className="btn btn--ghost" onClick={closeConfirmDialog} disabled={isConfirmLoading}>
+                Отмена
+              </button>
+              <button type="button" className="btn" onClick={onConfirmDialogAction} disabled={isConfirmLoading}>
+                {isConfirmLoading ? 'Выполняем...' : confirmDialog.confirmLabel}
+              </button>
+            </div>
           </div>
         </div>
       )}

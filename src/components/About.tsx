@@ -1,5 +1,6 @@
 import React from 'react';
 import { useReveal } from '../hooks/useReveal';
+import { homeMedia } from '../app/homeMedia';
 
 const About: React.FC = () => {
   const { ref: sectionRef } = useReveal<HTMLElement>({
@@ -23,7 +24,17 @@ const About: React.FC = () => {
           ref={imageRef}
           className={`about__image-wrap ${imgVisible ? 'reveal reveal--visible' : 'reveal'}`}
         >
-          <img src="/images/photo.jpg" alt="Яна - автор" className="about__image" />
+          <img
+            src={homeMedia.authorPhoto}
+            alt="Яна - автор"
+            className="about__image"
+            loading="lazy"
+            decoding="async"
+            onError={(event) => {
+              event.currentTarget.onerror = null;
+              event.currentTarget.src = '/images/photo.jpg';
+            }}
+          />
         </div>
 
         <div

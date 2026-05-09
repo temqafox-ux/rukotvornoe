@@ -1,0 +1,213 @@
+{
+  "users": [
+    {
+      "id": "admin_1778340726229_qoiuev",
+      "login": "rukotvornoeadmin",
+      "password": "fHghj3kL9s2jJkl",
+      "name": "Администратор"
+    }
+  ],
+  "sessions": [
+    {
+      "token": "token_1778341855195_8f1jmy",
+      "userId": "admin_1778340726229_qoiuev",
+      "createdAt": "2026-05-09T15:50:55.195Z"
+    }
+  ],
+  "folders": [
+    {
+      "id": "folder_1778340759819_1x2gi7",
+      "title": "123",
+      "slug": "123",
+      "coverImageUrl": "/uploads/asset_1778340759819_myvuly.png",
+      "createdAt": "2026-05-09T15:32:39.820Z",
+      "updatedAt": "2026-05-09T15:51:11.878Z"
+    },
+    {
+      "id": "folder_1778341546019_94okrj",
+      "title": "Панно пианино",
+      "slug": "panno-pianino",
+      "coverImageUrl": "/uploads/asset_1778341546019_fc4v63.jpeg",
+      "createdAt": "2026-05-09T15:45:46.020Z",
+      "updatedAt": "2026-05-09T15:54:56.329Z"
+    }
+  ],
+  "works": [
+    {
+      "id": "work_1778340809583_ssi7d7",
+      "folderId": "folder_1778340759819_1x2gi7",
+      "title": "orb2",
+      "imageUrl": "/uploads/asset_1778340809583_7dbppd.png",
+      "createdAt": "2026-05-09T15:33:29.584Z",
+      "updatedAt": "2026-05-09T15:33:29.584Z"
+    },
+    {
+      "id": "work_1778341871876_q2n9p7",
+      "folderId": "folder_1778340759819_1x2gi7",
+      "title": "rock",
+      "imageUrl": "/uploads/asset_1778341871876_hrgzm3.png",
+      "createdAt": "2026-05-09T15:51:11.877Z",
+      "updatedAt": "2026-05-09T15:51:11.877Z"
+    },
+    {
+      "id": "work_1778341871876_1y1t4g",
+      "folderId": "folder_1778340759819_1x2gi7",
+      "title": "player6",
+      "imageUrl": "/uploads/asset_1778341871876_2kvgs9.png",
+      "createdAt": "2026-05-09T15:51:11.877Z",
+      "updatedAt": "2026-05-09T15:51:11.877Z"
+    },
+    {
+      "id": "work_1778341871876_oiu85j",
+      "folderId": "folder_1778340759819_1x2gi7",
+      "title": "rock_animated",
+      "imageUrl": "/uploads/asset_1778341871876_kv5c10.png",
+      "createdAt": "2026-05-09T15:51:11.878Z",
+      "updatedAt": "2026-05-09T15:51:11.878Z"
+    },
+    {
+      "id": "work_1778341871876_qx6edm",
+      "folderId": "folder_1778340759819_1x2gi7",
+      "title": "rock_explode",
+      "imageUrl": "/uploads/asset_1778341871876_li3oo1.png",
+      "createdAt": "2026-05-09T15:51:11.878Z",
+      "updatedAt": "2026-05-09T15:51:11.878Z"
+    },
+    {
+      "id": "work_1778341871876_d34gpg",
+      "folderId": "folder_1778340759819_1x2gi7",
+      "title": "playerGpt",
+      "imageUrl": "/uploads/asset_1778341871876_mnoea9.png",
+      "createdAt": "2026-05-09T15:51:11.878Z",
+      "updatedAt": "2026-05-09T15:51:11.878Z"
+    },
+    {
+      "id": "work_1778342096317_lcpluv",
+      "folderId": "folder_1778341546019_94okrj",
+      "title": "bg4",
+      "imageUrl": "/uploads/asset_1778342096317_yg4esb.png",
+      "createdAt": "2026-05-09T15:54:56.328Z",
+      "updatedAt": "2026-05-09T15:54:56.328Z"
+    },
+    {
+      "id": "work_1778342096317_67f9xi",
+      "folderId": "folder_1778341546019_94okrj",
+      "title": "bgLayer2 — копия",
+      "imageUrl": "/uploads/asset_1778342096317_c5gq9p.png",
+      "createdAt": "2026-05-09T15:54:56.328Z",
+      "updatedAt": "2026-05-09T15:54:56.328Z"
+    },
+    {
+      "id": "work_1778342096318_lc6rv9",
+      "folderId": "folder_1778341546019_94okrj",
+      "title": "bgLayer2",
+      "imageUrl": "/uploads/asset_1778342096318_smsvk6.png",
+      "createdAt": "2026-05-09T15:54:56.328Z",
+      "updatedAt": "2026-05-09T15:54:56.328Z"
+    },
+    {
+      "id": "work_1778342096318_c8gnug",
+      "folderId": "folder_1778341546019_94okrj",
+      "title": "bgLayer3",
+      "imageUrl": "/uploads/asset_1778342096318_gkoa5p.png",
+      "createdAt": "2026-05-09T15:54:56.328Z",
+      "updatedAt": "2026-05-09T15:54:56.328Z"
+    },
+    {
+      "id": "work_1778342096318_l4nwmi",
+      "folderId": "folder_1778341546019_94okrj",
+      "title": "bgLayer4",
+      "imageUrl": "/uploads/asset_1778342096318_k0jc45.png",
+      "createdAt": "2026-05-09T15:54:56.328Z",
+      "updatedAt": "2026-05-09T15:54:56.328Z"
+    },
+    {
+      "id": "work_1778342096318_5w585v",
+      "folderId": "folder_1778341546019_94okrj",
+      "title": "orb",
+      "imageUrl": "/uploads/asset_1778342096318_galsaq.png",
+      "createdAt": "2026-05-09T15:54:56.328Z",
+      "updatedAt": "2026-05-09T15:54:56.328Z"
+    },
+    {
+      "id": "work_1778342096317_o4ibfa",
+      "folderId": "folder_1778341546019_94okrj",
+      "title": "bg3",
+      "imageUrl": "/uploads/asset_1778342096317_kirtio.jpeg",
+      "createdAt": "2026-05-09T15:54:56.328Z",
+      "updatedAt": "2026-05-09T15:54:56.328Z"
+    },
+    {
+      "id": "work_1778342096317_vvh5ls",
+      "folderId": "folder_1778341546019_94okrj",
+      "title": "bg1",
+      "imageUrl": "/uploads/asset_1778342096317_auo1wv.png",
+      "createdAt": "2026-05-09T15:54:56.328Z",
+      "updatedAt": "2026-05-09T15:54:56.328Z"
+    },
+    {
+      "id": "work_1778342096317_no1udq",
+      "folderId": "folder_1778341546019_94okrj",
+      "title": "bg3",
+      "imageUrl": "/uploads/asset_1778342096317_754tva.png",
+      "createdAt": "2026-05-09T15:54:56.328Z",
+      "updatedAt": "2026-05-09T15:54:56.328Z"
+    },
+    {
+      "id": "work_1778342096317_zwkbwf",
+      "folderId": "folder_1778341546019_94okrj",
+      "title": "bg5",
+      "imageUrl": "/uploads/asset_1778342096317_essi9v.png",
+      "createdAt": "2026-05-09T15:54:56.328Z",
+      "updatedAt": "2026-05-09T15:54:56.328Z"
+    },
+    {
+      "id": "work_1778342096318_fturmd",
+      "folderId": "folder_1778341546019_94okrj",
+      "title": "player2",
+      "imageUrl": "/uploads/asset_1778342096318_tm7ytl.jpeg",
+      "createdAt": "2026-05-09T15:54:56.328Z",
+      "updatedAt": "2026-05-09T15:54:56.328Z"
+    },
+    {
+      "id": "work_1778342096317_8dhdln",
+      "folderId": "folder_1778341546019_94okrj",
+      "title": "bg2",
+      "imageUrl": "/uploads/asset_1778342096317_2f14hw.png",
+      "createdAt": "2026-05-09T15:54:56.328Z",
+      "updatedAt": "2026-05-09T15:54:56.328Z"
+    },
+    {
+      "id": "work_1778342096318_a48c2y",
+      "folderId": "folder_1778341546019_94okrj",
+      "title": "bgMain",
+      "imageUrl": "/uploads/asset_1778342096318_tnv9ye.png",
+      "createdAt": "2026-05-09T15:54:56.329Z",
+      "updatedAt": "2026-05-09T15:54:56.329Z"
+    },
+    {
+      "id": "work_1778342096318_uj21tp",
+      "folderId": "folder_1778341546019_94okrj",
+      "title": "orb2",
+      "imageUrl": "/uploads/asset_1778342096318_m0fbyc.png",
+      "createdAt": "2026-05-09T15:54:56.329Z",
+      "updatedAt": "2026-05-09T15:54:56.329Z"
+    },
+    {
+      "id": "work_1778342096318_lam0cb",
+      "folderId": "folder_1778341546019_94okrj",
+      "title": "player",
+      "imageUrl": "/uploads/asset_1778342096318_uislwj.png",
+      "createdAt": "2026-05-09T15:54:56.329Z",
+      "updatedAt": "2026-05-09T15:54:56.329Z"
+    },
+    {
+      "id": "work_1778342096318_2zr37d",
+      "folderId": "folder_1778341546019_94okrj",
+      "title": "level_bg",
+      "imageUrl": "/uploads/asset_1778342096318_fj87z0.png",
+      "createdAt": "2026-05-09T15:54:56.329Z",
+      "updatedAt": "2026-05-09T15:54:56.329Z"
+    }
+  ]
+}

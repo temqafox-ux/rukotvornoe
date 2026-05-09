@@ -720,6 +720,28 @@
   padding: 5.5rem 2rem 7rem;
 }
 
+.admin-auth-page {
+  min-height: 100vh;
+  background: var(--color-bg-warm);
+  padding: 5.5rem 1.5rem;
+  display: grid;
+  place-items: center;
+}
+
+.admin-auth-card {
+  width: min(560px, 100%);
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-border);
+  padding: 1.4rem 1.4rem 1.6rem;
+  box-shadow: 0 12px 45px rgba(0, 0, 0, 0.07);
+}
+
+.admin-auth-card__top {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 1.25rem;
+}
+
 .works-page__header {
   max-width: var(--max-width);
   margin: 0 auto 3rem;

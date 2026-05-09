@@ -1,5 +1,6 @@
 import React, { FormEvent, useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
 import {
   Folder,
   Work,
@@ -8,7 +9,6 @@ import {
   useDeleteWorkMutation,
   useGetFolderWorksQuery,
   useGetFoldersQuery,
-  useLoginMutation,
   useLogoutMutation,
   useUpdateFolderMutation,
   useUpdateWorkMutation,
@@ -22,11 +22,7 @@ const WorksPage: React.FC = () => {
   const [selectedWork, setSelectedWork] = useState<Work | null>(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= MOBILE_BREAKPOINT);
   const [token, setToken] = useState(localStorage.getItem('admin_token'));
-  const [message, setMessage] = useState('');
-
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-  const [login, setLogin] = useState('');
-  const [password, setPassword] = useState('');
+  const [pendingKey, setPendingKey] = useState<string | null>(null);
 
   const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
   const [editingFolder, setEditingFolder] = useState<Folder | null>(null);
@@ -52,8 +48,7 @@ const WorksPage: React.FC = () => {
     refetch: refetchFolderWorks
   } = useGetFolderWorksQuery(selectedFolder?.slug ?? '', { skip: !selectedFolder });
 
-  const [loginAdmin, { isLoading: isLoggingIn }] = useLoginMutation();
-  const [logoutAdmin] = useLogoutMutation();
+  const [logoutAdmin, { isLoading: isLoggingOut }] = useLogoutMutation();
   const [createFolder, { isLoading: isCreatingFolder }] = useCreateFolderMutation();
   const [updateFolder, { isLoading: isUpdatingFolder }] = useUpdateFolderMutation();
   const [deleteFolder, { isLoading: isDeletingFolder }] = useDeleteFolderMutation();
@@ -64,6 +59,7 @@ const WorksPage: React.FC = () => {
   const isAdmin = Boolean(token);
   const folderActionsBusy = isCreatingFolder || isUpdatingFolder || isDeletingFolder;
   const workActionsBusy = isUploadingWorks || isUpdatingWork || isDeletingWork;
+  const isAnyActionPending = Boolean(pendingKey);
 
   useLayoutEffect(() => {
     window.scrollTo(0, 0);
@@ -105,6 +101,10 @@ const WorksPage: React.FC = () => {
     return value.data?.message ?? fallback;
   };
 
+  const notifyError = (error: unknown) => {
+    toast.error(errorMessage(error));
+  };
+
   const openCreateFolderModal = () => {
     setEditingFolder(null);
     setFolderTitle('');
@@ -119,22 +119,8 @@ const WorksPage: React.FC = () => {
     setIsFolderModalOpen(true);
   };
 
-  const onSubmitLogin = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setMessage('');
-    try {
-      const result = await loginAdmin({ login, password }).unwrap();
-      localStorage.setItem('admin_token', result.token);
-      setToken(result.token);
-      setIsLoginModalOpen(false);
-      setPassword('');
-      setMessage('Режим редактирования включен.');
-    } catch (error) {
-      setMessage(errorMessage(error));
-    }
-  };
-
   const onLogout = async () => {
+    setPendingKey('logout');
     try {
       await logoutAdmin().unwrap();
     } catch (_error) {
@@ -142,13 +128,15 @@ const WorksPage: React.FC = () => {
     } finally {
       localStorage.removeItem('admin_token');
       setToken(null);
-      setMessage('Режим редактирования выключен.');
+      toast.success('Режим редактирования выключен.');
+      setPendingKey(null);
     }
   };
 
   const onSubmitFolder = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setMessage('');
+    const actionKey = editingFolder ? `save-folder-${editingFolder.id}` : 'create-folder';
+    setPendingKey(actionKey);
 
     const body = new FormData();
     body.append('title', folderTitle);
@@ -164,9 +152,11 @@ const WorksPage: React.FC = () => {
       }
       setIsFolderModalOpen(false);
       await refetchFolders();
-      setMessage('Папка сохранена.');
+      toast.success('Папка сохранена.');
     } catch (error) {
-      setMessage(errorMessage(error));
+      notifyError(error);
+    } finally {
+      setPendingKey(null);
     }
   };
 
@@ -174,22 +164,26 @@ const WorksPage: React.FC = () => {
     const confirmed = window.confirm(`Удалить папку "${folder.title}"?`);
     if (!confirmed) return;
 
-    setMessage('');
+    const actionKey = `delete-folder-${folder.id}`;
+    setPendingKey(actionKey);
     try {
       await deleteFolder(folder.id).unwrap();
       if (selectedFolder?.id === folder.id) {
         setSelectedFolder(null);
       }
       await refetchFolders();
-      setMessage('Папка удалена.');
+      toast.success('Папка удалена.');
     } catch (error) {
-      setMessage(errorMessage(error));
+      notifyError(error);
+    } finally {
+      setPendingKey(null);
     }
   };
 
   const onSubmitUploadWorks = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!selectedFolder || uploadFiles.length === 0) return;
+    setPendingKey('upload-works');
 
     const body = new FormData();
     uploadFiles.forEach((file, index) => {
@@ -198,16 +192,17 @@ const WorksPage: React.FC = () => {
       body.append(`title_${index}`, title);
     });
 
-    setMessage('');
     try {
       await uploadWorks({ folderId: selectedFolder.id, body }).unwrap();
       setIsUploadModalOpen(false);
       setUploadFiles([]);
       await refetchFolderWorks();
       await refetchFolders();
-      setMessage('Фотографии добавлены.');
+      toast.success('Фотографии добавлены.');
     } catch (error) {
-      setMessage(errorMessage(error));
+      notifyError(error);
+    } finally {
+      setPendingKey(null);
     }
   };
 
@@ -221,6 +216,7 @@ const WorksPage: React.FC = () => {
   const onSubmitWorkEdit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!editingWork) return;
+    setPendingKey(`save-work-${editingWork.id}`);
 
     const body = new FormData();
     body.append('title', workTitle);
@@ -228,14 +224,15 @@ const WorksPage: React.FC = () => {
       body.append('file', workFile);
     }
 
-    setMessage('');
     try {
       await updateWork({ id: editingWork.id, body }).unwrap();
       setIsWorkModalOpen(false);
       await refetchFolderWorks();
-      setMessage('Работа обновлена.');
+      toast.success('Работа обновлена.');
     } catch (error) {
-      setMessage(errorMessage(error));
+      notifyError(error);
+    } finally {
+      setPendingKey(null);
     }
   };
 
@@ -243,14 +240,17 @@ const WorksPage: React.FC = () => {
     const confirmed = window.confirm(`Удалить работу "${work.title}"?`);
     if (!confirmed) return;
 
-    setMessage('');
+    const actionKey = `delete-work-${work.id}`;
+    setPendingKey(actionKey);
     try {
       await deleteWork(work.id).unwrap();
       await refetchFolderWorks();
       await refetchFolders();
-      setMessage('Работа удалена.');
+      toast.success('Работа удалена.');
     } catch (error) {
-      setMessage(errorMessage(error));
+      notifyError(error);
+    } finally {
+      setPendingKey(null);
     }
   };
 
@@ -284,24 +284,18 @@ const WorksPage: React.FC = () => {
       <header className="works-page__header">
         <div className="works-page__top">
           <Link to="/" className="btn btn--ghost">На главную</Link>
-          <div className="works-page__admin-controls">
-            {isAdmin ? (
-              <>
-                <span className="works-page__admin-state">Режим редактирования</span>
-                <button type="button" className="btn btn--ghost" onClick={onLogout}>Выйти</button>
-              </>
-            ) : (
-              <button type="button" className="btn btn--ghost" onClick={() => setIsLoginModalOpen(true)}>
-                Вход для редактирования
+          {isAdmin && (
+            <div className="works-page__admin-controls">
+              <span className="works-page__admin-state">Режим редактирования</span>
+              <button type="button" className="btn btn--ghost" onClick={onLogout} disabled={isLoggingOut || isAnyActionPending}>
+                {isLoggingOut || pendingKey === 'logout' ? 'Выходим...' : 'Выйти'}
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
         <h1 className="section-title">{selectedFolder ? selectedFolder.title : 'Все работы'}</h1>
         <div className="section-divider" />
       </header>
-
-      {message && <p className="works-page__message">{message}</p>}
 
       {!selectedFolder && isAdmin && (
         <div className="works-page__actions">
@@ -309,9 +303,9 @@ const WorksPage: React.FC = () => {
             type="button"
             className="btn"
             onClick={openCreateFolderModal}
-            disabled={folderActionsBusy}
+            disabled={folderActionsBusy || isAnyActionPending}
           >
-            + Добавить папку
+            {pendingKey === 'create-folder' ? 'Создаем...' : '+ Добавить папку'}
           </button>
         </div>
       )}
@@ -327,7 +321,7 @@ const WorksPage: React.FC = () => {
                 type="button"
                 className="btn"
                 onClick={() => setIsUploadModalOpen(true)}
-                disabled={workActionsBusy}
+                disabled={workActionsBusy || isAnyActionPending}
               >
                 + Добавить фото
               </button>
@@ -356,8 +350,10 @@ const WorksPage: React.FC = () => {
                   </button>
                   {isAdmin && (
                     <div className="works-grid__admin-actions">
-                      <button type="button" className="btn btn--ghost" onClick={() => openEditWorkModal(work)}>Изменить</button>
-                      <button type="button" className="btn btn--ghost" onClick={() => onDeleteWork(work)} disabled={workActionsBusy}>Удалить</button>
+                      <button type="button" className="btn btn--ghost" onClick={() => openEditWorkModal(work)} disabled={isAnyActionPending}>Изменить</button>
+                      <button type="button" className="btn btn--ghost" onClick={() => onDeleteWork(work)} disabled={workActionsBusy || isAnyActionPending}>
+                        {pendingKey === `delete-work-${work.id}` ? 'Удаляем...' : 'Удалить'}
+                      </button>
                     </div>
                   )}
                 </article>
@@ -390,8 +386,10 @@ const WorksPage: React.FC = () => {
               </button>
               {isAdmin && (
                 <div className="works-grid__admin-actions">
-                  <button type="button" className="btn btn--ghost" onClick={() => openEditFolderModal(folder)}>Изменить</button>
-                  <button type="button" className="btn btn--ghost" onClick={() => onDeleteFolder(folder)} disabled={folderActionsBusy}>Удалить</button>
+                  <button type="button" className="btn btn--ghost" onClick={() => openEditFolderModal(folder)} disabled={isAnyActionPending}>Изменить</button>
+                  <button type="button" className="btn btn--ghost" onClick={() => onDeleteFolder(folder)} disabled={folderActionsBusy || isAnyActionPending}>
+                    {pendingKey === `delete-folder-${folder.id}` ? 'Удаляем...' : 'Удалить'}
+                  </button>
                 </div>
               )}
             </article>
@@ -462,27 +460,6 @@ const WorksPage: React.FC = () => {
         </div>
       )}
 
-      {isLoginModalOpen && (
-        <div className="work-modal work-modal--open" role="dialog" aria-modal="true">
-          <div className="work-modal__overlay" onClick={() => setIsLoginModalOpen(false)} />
-          <div className="work-modal__dialog work-modal__dialog--form">
-            <button className="work-modal__close" onClick={() => setIsLoginModalOpen(false)} aria-label="Закрыть">×</button>
-            <h2 className="work-modal__title">Вход в режим редактирования</h2>
-            <form className="admin-form" onSubmit={onSubmitLogin}>
-              <label className="admin-form__field">
-                Логин
-                <input value={login} onChange={(event) => setLogin(event.target.value)} required />
-              </label>
-              <label className="admin-form__field">
-                Пароль
-                <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required />
-              </label>
-              <button type="submit" className="btn" disabled={isLoggingIn}>Войти</button>
-            </form>
-          </div>
-        </div>
-      )}
-
       {isFolderModalOpen && (
         <div className="work-modal work-modal--open" role="dialog" aria-modal="true">
           <div className="work-modal__overlay" onClick={() => setIsFolderModalOpen(false)} />
@@ -498,7 +475,9 @@ const WorksPage: React.FC = () => {
                 Обложка
                 <input type="file" accept="image/*" onChange={(event) => setFolderCover(event.target.files?.[0] ?? null)} />
               </label>
-              <button type="submit" className="btn" disabled={folderActionsBusy}>Сохранить</button>
+              <button type="submit" className="btn" disabled={folderActionsBusy || isAnyActionPending}>
+                {pendingKey?.startsWith('save-folder-') || pendingKey === 'create-folder' ? 'Сохраняем...' : 'Сохранить'}
+              </button>
             </form>
           </div>
         </div>
@@ -521,8 +500,8 @@ const WorksPage: React.FC = () => {
                   onChange={(event) => setUploadFiles(Array.from(event.target.files ?? []))}
                 />
               </label>
-              <button type="submit" className="btn" disabled={workActionsBusy || uploadFiles.length === 0}>
-                Загрузить {uploadFiles.length > 0 ? `(${uploadFiles.length})` : ''}
+              <button type="submit" className="btn" disabled={workActionsBusy || uploadFiles.length === 0 || isAnyActionPending}>
+                {pendingKey === 'upload-works' ? 'Загружаем...' : `Загрузить ${uploadFiles.length > 0 ? `(${uploadFiles.length})` : ''}`}
               </button>
             </form>
           </div>
@@ -544,7 +523,9 @@ const WorksPage: React.FC = () => {
                 Заменить фото
                 <input type="file" accept="image/*" onChange={(event) => setWorkFile(event.target.files?.[0] ?? null)} />
               </label>
-              <button type="submit" className="btn" disabled={workActionsBusy}>Сохранить</button>
+              <button type="submit" className="btn" disabled={workActionsBusy || isAnyActionPending}>
+                {pendingKey === `save-work-${editingWork.id}` ? 'Сохраняем...' : 'Сохранить'}
+              </button>
             </form>
           </div>
         </div>

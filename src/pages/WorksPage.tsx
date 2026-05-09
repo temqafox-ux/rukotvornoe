@@ -76,6 +76,7 @@ const WorksPage: React.FC = () => {
   const folderActionsBusy = isCreatingFolder || isUpdatingFolder || isDeletingFolder;
   const workActionsBusy = isUploadingWorks || isUpdatingWork || isDeletingWork;
   const isAnyActionPending = Boolean(pendingKey);
+  const selectedFolderId = selectedFolder?.id ?? null;
 
   useLayoutEffect(() => {
     window.scrollTo(0, 0);
@@ -139,6 +140,8 @@ const WorksPage: React.FC = () => {
   const works = useMemo(() => folderDetails?.works ?? [], [folderDetails]);
   const visibleWorks = useMemo(() => works.slice(0, visibleWorksCount), [works, visibleWorksCount]);
   const hasMoreWorks = visibleWorksCount < works.length;
+  const isFoldersEmpty = !isFoldersLoading && folders.length === 0;
+  const isWorksEmpty = !isWorksLoading && works.length === 0;
   const currentIndex = selectedWork ? works.findIndex((work) => work.id === selectedWork.id) : -1;
   const canGoPrev = currentIndex > 0;
   const canGoNext = currentIndex >= 0 && currentIndex < works.length - 1;
@@ -191,10 +194,10 @@ const WorksPage: React.FC = () => {
 
   useEffect(() => {
     setVisibleWorksCount(WORKS_PAGE_SIZE);
-    if (selectedFolder) {
+    if (selectedFolderId) {
       window.scrollTo({ top: 0, behavior: 'auto' });
     }
-  }, [selectedFolder?.id]);
+  }, [selectedFolderId]);
 
   const onLogout = async () => {
     setPendingKey('logout');
@@ -452,6 +455,11 @@ const WorksPage: React.FC = () => {
                 </article>
               ))}
             </section>
+          ) : isWorksEmpty ? (
+            <section className="works-page__empty" aria-label="Пустая папка">
+              <p>В этой папке пока нет работ.</p>
+              {showAdminUi && <p>Добавьте фото кнопкой "+ Добавить фото".</p>}
+            </section>
           ) : (
             <>
               <section className="works-grid" aria-label="Работы в папке">
@@ -509,37 +517,46 @@ const WorksPage: React.FC = () => {
           ))}
         </section>
       ) : (
-        <section className="works-grid" aria-label="Папки с работами">
-          {folders.map((folder, i) => (
-            <article
-              key={folder.id}
-              className="works-grid__card"
-              style={{ '--delay': `${i * 40}ms` } as React.CSSProperties}
-            >
-              <button
-                type="button"
-                className="works-grid__card-hit"
-                onClick={() => setSelectedFolder(folder)}
-                aria-label={folder.title}
-              >
-                <div className="works-grid__img">
-                  <img src={toImageUrl(folder.coverImageUrl)} alt={folder.title} loading="lazy" decoding="async" />
-                </div>
-                <div className="works-grid__info">
-                  <h3 className="works-grid__title works-grid__title--folder">{folder.title}</h3>
-                </div>
-              </button>
-              {showAdminUi && (
-                <div className="works-grid__admin-actions">
-                  <button type="button" className="btn btn--ghost" onClick={() => openEditFolderModal(folder)} disabled={isAnyActionPending}>Изменить</button>
-                  <button type="button" className="btn btn--ghost" onClick={() => onDeleteFolder(folder)} disabled={folderActionsBusy || isAnyActionPending}>
-                    {pendingKey === `delete-folder-${folder.id}` ? 'Удаляем...' : 'Удалить'}
+        <>
+          {isFoldersEmpty ? (
+            <section className="works-page__empty" aria-label="Нет папок">
+              <p>Папок пока нет.</p>
+              {showAdminUi && <p>Создайте первую папку кнопкой "+ Добавить папку".</p>}
+            </section>
+          ) : (
+            <section className="works-grid" aria-label="Папки с работами">
+              {folders.map((folder, i) => (
+                <article
+                  key={folder.id}
+                  className="works-grid__card"
+                  style={{ '--delay': `${i * 40}ms` } as React.CSSProperties}
+                >
+                  <button
+                    type="button"
+                    className="works-grid__card-hit"
+                    onClick={() => setSelectedFolder(folder)}
+                    aria-label={folder.title}
+                  >
+                    <div className="works-grid__img">
+                      <img src={toImageUrl(folder.coverImageUrl)} alt={folder.title} loading="lazy" decoding="async" />
+                    </div>
+                    <div className="works-grid__info">
+                      <h3 className="works-grid__title works-grid__title--folder">{folder.title}</h3>
+                    </div>
                   </button>
-                </div>
-              )}
-            </article>
-          ))}
-        </section>
+                  {showAdminUi && (
+                    <div className="works-grid__admin-actions">
+                      <button type="button" className="btn btn--ghost" onClick={() => openEditFolderModal(folder)} disabled={isAnyActionPending}>Изменить</button>
+                      <button type="button" className="btn btn--ghost" onClick={() => onDeleteFolder(folder)} disabled={folderActionsBusy || isAnyActionPending}>
+                        {pendingKey === `delete-folder-${folder.id}` ? 'Удаляем...' : 'Удалить'}
+                      </button>
+                    </div>
+                  )}
+                </article>
+              ))}
+            </section>
+          )}
+        </>
       )}
 
       <section className="contact" style={{ marginTop: '4rem' }}>

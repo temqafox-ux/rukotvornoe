@@ -1,4 +1,5 @@
 import React, { FormEvent, useEffect, useState } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useLoginMutation } from '../app/contentApi';
@@ -37,6 +38,11 @@ const AdminPage: React.FC = () => {
 
   return (
     <main className="admin-auth-page">
+      <Helmet>
+        <title>Вход в админку | Рукотворное</title>
+        <meta name="description" content="Вход в административный раздел сайта Рукотворное." />
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
       <div className="admin-auth-card">
         <div className="admin-auth-card__top">
           <Link to="/" className="btn btn--ghost">На главную</Link>

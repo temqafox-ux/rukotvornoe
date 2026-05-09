@@ -5,6 +5,7 @@ const adminPassword = process.env.ADMIN_PASSWORD ?? 'admin123';
 const adminName = process.env.ADMIN_NAME ?? 'Администратор';
 const passwordSaltRounds = Math.max(8, Math.min(Number(process.env.PASSWORD_SALT_ROUNDS ?? 10), 14));
 const asString = (value, fallback = '') => (typeof value === 'string' && value.trim() ? value : fallback);
+const asNumber = (value, fallback = 0) => (typeof value === 'number' && Number.isFinite(value) ? value : fallback);
 const toAdminUser = (value) => {
     if (!value || typeof value !== 'object')
         return null;
@@ -45,6 +46,7 @@ const toFolderRecord = (value) => {
         title,
         slug,
         coverImageUrl,
+        sortOrder: Math.max(0, asNumber(item.sortOrder, 0)),
         createdAt: asString(item.createdAt, nowIso()),
         updatedAt: asString(item.updatedAt, nowIso())
     };
@@ -64,6 +66,7 @@ const toWorkRecord = (value) => {
         folderId,
         title,
         imageUrl,
+        sortOrder: Math.max(0, asNumber(item.sortOrder, 0)),
         createdAt: asString(item.createdAt, nowIso()),
         updatedAt: asString(item.updatedAt, nowIso())
     };
@@ -96,10 +99,23 @@ export const normalizeDb = (db) => {
         .map(toWorkRecord)
         .filter((item) => Boolean(item))
         .filter((item) => folderIds.has(item.folderId));
+    const normalizedFolders = folders.map((folder, index) => ({
+        ...folder,
+        sortOrder: folder.sortOrder > 0 ? folder.sortOrder : index + 1
+    }));
+    const workOrderByFolder = new Map();
+    const normalizedWorks = works.map((work) => {
+        const fallbackOrder = (workOrderByFolder.get(work.folderId) ?? 0) + 1;
+        workOrderByFolder.set(work.folderId, fallbackOrder);
+        return {
+            ...work,
+            sortOrder: work.sortOrder > 0 ? work.sortOrder : fallbackOrder
+        };
+    });
     return {
         users: users.length > 0 ? users : [createDefaultAdminUser()],
         sessions,
-        folders,
-        works
+        folders: normalizedFolders,
+        works: normalizedWorks
     };
 };

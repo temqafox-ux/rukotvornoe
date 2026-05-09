@@ -47,6 +47,7 @@ const createSchema = (db: Database.Database) => {
       title TEXT NOT NULL,
       slug TEXT NOT NULL UNIQUE,
       coverImageUrl TEXT NOT NULL,
+      sortOrder INTEGER NOT NULL DEFAULT 0,
       createdAt TEXT NOT NULL,
       updatedAt TEXT NOT NULL
     );
@@ -56,6 +57,7 @@ const createSchema = (db: Database.Database) => {
       folderId TEXT NOT NULL,
       title TEXT NOT NULL,
       imageUrl TEXT NOT NULL,
+      sortOrder INTEGER NOT NULL DEFAULT 0,
       createdAt TEXT NOT NULL,
       updatedAt TEXT NOT NULL,
       FOREIGN KEY(folderId) REFERENCES folders(id) ON DELETE CASCADE
@@ -64,13 +66,46 @@ const createSchema = (db: Database.Database) => {
     CREATE INDEX IF NOT EXISTS idx_sessions_userId ON sessions(userId);
     CREATE INDEX IF NOT EXISTS idx_works_folderId ON works(folderId);
   `);
+
+  const ensureColumn = (table: string, column: string, definition: string) => {
+    const tableInfo = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+    if (!tableInfo.some((item) => item.name === column)) {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+    }
+  };
+
+  ensureColumn('folders', 'sortOrder', 'INTEGER NOT NULL DEFAULT 0');
+  ensureColumn('works', 'sortOrder', 'INTEGER NOT NULL DEFAULT 0');
+
+  const foldersWithoutOrder = db
+    .prepare('SELECT id FROM folders WHERE sortOrder = 0 ORDER BY createdAt ASC')
+    .all() as Array<{ id: string }>;
+  if (foldersWithoutOrder.length > 0) {
+    const updateFolderOrder = db.prepare('UPDATE folders SET sortOrder = ? WHERE id = ?');
+    foldersWithoutOrder.forEach((folder, index) => {
+      updateFolderOrder.run(index + 1, folder.id);
+    });
+  }
+
+  const worksWithoutOrder = db
+    .prepare('SELECT id, folderId FROM works WHERE sortOrder = 0 ORDER BY folderId ASC, createdAt ASC')
+    .all() as Array<{ id: string; folderId: string }>;
+  if (worksWithoutOrder.length > 0) {
+    const updateWorkOrder = db.prepare('UPDATE works SET sortOrder = ? WHERE id = ?');
+    const sequenceMap = new Map<string, number>();
+    for (const work of worksWithoutOrder) {
+      const nextOrder = (sequenceMap.get(work.folderId) ?? 0) + 1;
+      sequenceMap.set(work.folderId, nextOrder);
+      updateWorkOrder.run(nextOrder, work.id);
+    }
+  }
 };
 
 const readDbSync = (db: Database.Database): DatabaseRecord => ({
   users: db.prepare('SELECT id, login, password, name FROM users').all() as DatabaseRecord['users'],
   sessions: db.prepare('SELECT token, userId, createdAt FROM sessions').all() as DatabaseRecord['sessions'],
-  folders: db.prepare('SELECT id, title, slug, coverImageUrl, createdAt, updatedAt FROM folders').all() as DatabaseRecord['folders'],
-  works: db.prepare('SELECT id, folderId, title, imageUrl, createdAt, updatedAt FROM works').all() as DatabaseRecord['works']
+  folders: db.prepare('SELECT id, title, slug, coverImageUrl, sortOrder, createdAt, updatedAt FROM folders').all() as DatabaseRecord['folders'],
+  works: db.prepare('SELECT id, folderId, title, imageUrl, sortOrder, createdAt, updatedAt FROM works').all() as DatabaseRecord['works']
 });
 
 const replaceDbSync = (db: Database.Database, data: DatabaseRecord) => {
@@ -91,17 +126,17 @@ const replaceDbSync = (db: Database.Database, data: DatabaseRecord) => {
     }
 
     const insertFolder = db.prepare(
-      'INSERT INTO folders (id, title, slug, coverImageUrl, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)'
+      'INSERT INTO folders (id, title, slug, coverImageUrl, sortOrder, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)'
     );
     for (const folder of payload.folders) {
-      insertFolder.run(folder.id, folder.title, folder.slug, folder.coverImageUrl, folder.createdAt, folder.updatedAt);
+      insertFolder.run(folder.id, folder.title, folder.slug, folder.coverImageUrl, folder.sortOrder, folder.createdAt, folder.updatedAt);
     }
 
     const insertWork = db.prepare(
-      'INSERT INTO works (id, folderId, title, imageUrl, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)'
+      'INSERT INTO works (id, folderId, title, imageUrl, sortOrder, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)'
     );
     for (const work of payload.works) {
-      insertWork.run(work.id, work.folderId, work.title, work.imageUrl, work.createdAt, work.updatedAt);
+      insertWork.run(work.id, work.folderId, work.title, work.imageUrl, work.sortOrder, work.createdAt, work.updatedAt);
     }
   });
 

@@ -96,15 +96,26 @@ const workSchema = z.object({
   title: z.string().trim().min(2)
 });
 
+const reorderSchema = z.object({
+  direction: z.enum(['up', 'down'])
+});
+
 const loginSchema = z.object({
   login: z.string().trim().min(1),
   password: z.string().trim().min(1)
 });
 
+const sortFolders = (folders: FolderRecord[]) =>
+  [...folders].sort((a, b) => a.sortOrder - b.sortOrder || b.createdAt.localeCompare(a.createdAt));
+
+const sortWorks = (works: WorkRecord[]) =>
+  [...works].sort((a, b) => a.sortOrder - b.sortOrder || b.createdAt.localeCompare(a.createdAt));
+
 const mapWork = (work: WorkRecord): PublicWork => ({
   id: work.id,
   title: work.title,
-  imageUrl: work.imageUrl
+  imageUrl: work.imageUrl,
+  sortOrder: work.sortOrder
 });
 
 const mapFolder = (folder: FolderRecord, works: WorkRecord[]): PublicFolder => ({
@@ -112,12 +123,13 @@ const mapFolder = (folder: FolderRecord, works: WorkRecord[]): PublicFolder => (
   title: folder.title,
   slug: folder.slug,
   coverImageUrl: folder.coverImageUrl,
+  sortOrder: folder.sortOrder,
   worksCount: works.filter((work) => work.folderId === folder.id).length
 });
 
 const resolveDetails = (folder: FolderRecord, works: WorkRecord[]): PublicFolderDetails => ({
   ...mapFolder(folder, works),
-  works: works.filter((work) => work.folderId === folder.id).map(mapWork)
+  works: sortWorks(works.filter((work) => work.folderId === folder.id)).map(mapWork)
 });
 
 const getToken = (header?: string) => {
@@ -342,7 +354,8 @@ app.post('/api/auth/logout', async (req, res) => {
 
 app.get('/api/folders', async (_req, res) => {
   const db = await readDb();
-  return res.json(db.folders.map((folder) => mapFolder(folder, db.works)));
+  const folders = sortFolders(db.folders);
+  return res.json(folders.map((folder) => mapFolder(folder, db.works)));
 });
 
 app.get('/api/folders/:slug/works', async (req, res) => {
@@ -382,6 +395,7 @@ app.post('/api/admin/folders', upload.single('cover'), async (req, res) => {
       title: payload.data.title,
       slug,
       coverImageUrl: req.file ? await saveUpload(req.file) : '/images/photo1.jpg',
+      sortOrder: Math.max(0, ...db.folders.map((item) => item.sortOrder)) + 1,
       createdAt: nowIso(),
       updatedAt: nowIso()
     };
@@ -453,6 +467,49 @@ app.patch('/api/admin/folders/:id', upload.single('cover'), async (req, res) => 
   return res.json(result.details);
 });
 
+app.post('/api/admin/folders/:id/reorder', async (req, res) => {
+  const auth = await requireAdmin(req.headers.authorization);
+  if (!auth) {
+    return res.status(401).json({ message: 'Нужна авторизация.' });
+  }
+
+  const payload = reorderSchema.safeParse(req.body);
+  if (!payload.success) {
+    return res.status(400).json({ message: 'Некорректный запрос на изменение порядка.' });
+  }
+
+  const result = await updateDb(async (db) => {
+    const sortedFolders = sortFolders(db.folders);
+    const currentIndex = sortedFolders.findIndex((item) => item.id === req.params.id);
+    if (currentIndex === -1) {
+      return 'not-found' as const;
+    }
+
+    const targetIndex = payload.data.direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= sortedFolders.length) {
+      return 'edge' as const;
+    }
+
+    const current = sortedFolders[currentIndex];
+    const target = sortedFolders[targetIndex];
+    const currentOrder = current.sortOrder;
+    current.sortOrder = target.sortOrder;
+    target.sortOrder = currentOrder;
+    current.updatedAt = nowIso();
+    target.updatedAt = nowIso();
+
+    return 'ok' as const;
+  });
+
+  if (result === 'not-found') {
+    return res.status(404).json({ message: 'Папка не найдена.' });
+  }
+  if (result === 'edge') {
+    return res.status(400).json({ message: 'Нельзя переместить папку дальше.' });
+  }
+  return res.status(204).send();
+});
+
 app.delete('/api/admin/folders/:id', async (req, res) => {
   const auth = await requireAdmin(req.headers.authorization);
   if (!auth) {
@@ -512,11 +569,16 @@ app.post('/api/admin/folders/:id/works/upload', upload.array('files', 20), async
 
     const works = await Promise.all(
       files.map(async (file, index) => {
+        const nextSortOrder = Math.max(
+          0,
+          ...db.works.filter((item) => item.folderId === folder.id).map((item) => item.sortOrder)
+        ) + index + 1;
         const work: WorkRecord = {
           id: createId('work'),
           folderId: folder.id,
           title: String(req.body[`title_${index}`] ?? file.originalname.replace(/\.[^.]+$/, '')),
           imageUrl: await saveUpload(file),
+          sortOrder: nextSortOrder,
           createdAt: nowIso(),
           updatedAt: nowIso()
         };
@@ -585,6 +647,53 @@ app.patch('/api/admin/works/:id', upload.single('file'), async (req, res) => {
   }
 
   return res.json(result.work);
+});
+
+app.post('/api/admin/works/:id/reorder', async (req, res) => {
+  const auth = await requireAdmin(req.headers.authorization);
+  if (!auth) {
+    return res.status(401).json({ message: 'Нужна авторизация.' });
+  }
+
+  const payload = reorderSchema.safeParse(req.body);
+  if (!payload.success) {
+    return res.status(400).json({ message: 'Некорректный запрос на изменение порядка.' });
+  }
+
+  const result = await updateDb(async (db) => {
+    const current = db.works.find((item) => item.id === req.params.id);
+    if (!current) {
+      return 'not-found' as const;
+    }
+
+    const siblings = sortWorks(db.works.filter((item) => item.folderId === current.folderId));
+    const currentIndex = siblings.findIndex((item) => item.id === current.id);
+    if (currentIndex === -1) {
+      return 'not-found' as const;
+    }
+
+    const targetIndex = payload.data.direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= siblings.length) {
+      return 'edge' as const;
+    }
+
+    const target = siblings[targetIndex];
+    const currentOrder = current.sortOrder;
+    current.sortOrder = target.sortOrder;
+    target.sortOrder = currentOrder;
+    current.updatedAt = nowIso();
+    target.updatedAt = nowIso();
+
+    return 'ok' as const;
+  });
+
+  if (result === 'not-found') {
+    return res.status(404).json({ message: 'Работа не найдена.' });
+  }
+  if (result === 'edge') {
+    return res.status(400).json({ message: 'Нельзя переместить работу дальше.' });
+  }
+  return res.status(204).send();
 });
 
 app.delete('/api/admin/works/:id', async (req, res) => {

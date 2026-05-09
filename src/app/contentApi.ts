@@ -5,6 +5,7 @@ export interface Folder {
   title: string;
   slug: string;
   coverImageUrl: string;
+  sortOrder: number;
   worksCount: number;
 }
 
@@ -12,6 +13,7 @@ export interface Work {
   id: string;
   title: string;
   imageUrl: string;
+  sortOrder: number;
 }
 
 export interface FolderDetails extends Folder {
@@ -87,6 +89,14 @@ export const contentApi = createApi({
       }),
       invalidatesTags: ['Folders']
     }),
+    reorderFolder: builder.mutation<void, { id: string; direction: 'up' | 'down' }>({
+      query: ({ id, direction }) => ({
+        url: `/admin/folders/${id}/reorder`,
+        method: 'POST',
+        body: { direction }
+      }),
+      invalidatesTags: ['Folders', 'FolderDetails']
+    }),
     uploadWorks: builder.mutation<Work[], { folderId: string; body: FormData }>({
       query: ({ folderId, body }) => ({
         url: `/admin/folders/${folderId}/works/upload`,
@@ -109,6 +119,14 @@ export const contentApi = createApi({
         method: 'DELETE'
       }),
       invalidatesTags: ['Folders']
+    }),
+    reorderWork: builder.mutation<void, { id: string; direction: 'up' | 'down' }>({
+      query: ({ id, direction }) => ({
+        url: `/admin/works/${id}/reorder`,
+        method: 'POST',
+        body: { direction }
+      }),
+      invalidatesTags: ['Folders', 'FolderDetails']
     })
   })
 });
@@ -121,7 +139,9 @@ export const {
   useCreateFolderMutation,
   useUpdateFolderMutation,
   useDeleteFolderMutation,
+  useReorderFolderMutation,
   useUploadWorksMutation,
   useUpdateWorkMutation,
-  useDeleteWorkMutation
+  useDeleteWorkMutation,
+  useReorderWorkMutation
 } = contentApi;

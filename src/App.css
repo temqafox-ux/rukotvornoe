@@ -987,6 +987,13 @@
   display: flex;
   gap: 0.5rem;
   padding: 0.7rem 1rem 1rem;
+  flex-wrap: wrap;
+}
+
+.works-grid__admin-btn {
+  min-width: 44px;
+  padding-left: 0.8rem;
+  padding-right: 0.8rem;
 }
 
 .work-modal {

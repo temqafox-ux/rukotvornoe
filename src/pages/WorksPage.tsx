@@ -1,4 +1,5 @@
 import React, { FormEvent, useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -10,6 +11,8 @@ import {
   useGetFolderWorksQuery,
   useGetFoldersQuery,
   useLogoutMutation,
+  useReorderFolderMutation,
+  useReorderWorkMutation,
   useUpdateFolderMutation,
   useUploadWorksMutation
 } from '../app/contentApi';
@@ -62,13 +65,15 @@ const WorksPage: React.FC = () => {
   const [createFolder, { isLoading: isCreatingFolder }] = useCreateFolderMutation();
   const [updateFolder, { isLoading: isUpdatingFolder }] = useUpdateFolderMutation();
   const [deleteFolder, { isLoading: isDeletingFolder }] = useDeleteFolderMutation();
+  const [reorderFolder, { isLoading: isReorderingFolder }] = useReorderFolderMutation();
   const [uploadWorks, { isLoading: isUploadingWorks }] = useUploadWorksMutation();
   const [deleteWork, { isLoading: isDeletingWork }] = useDeleteWorkMutation();
+  const [reorderWork, { isLoading: isReorderingWork }] = useReorderWorkMutation();
 
   const isAdmin = Boolean(token);
   const showAdminUi = isAdmin && !isUserPreview;
-  const folderActionsBusy = isCreatingFolder || isUpdatingFolder || isDeletingFolder;
-  const workActionsBusy = isUploadingWorks || isDeletingWork;
+  const folderActionsBusy = isCreatingFolder || isUpdatingFolder || isDeletingFolder || isReorderingFolder;
+  const workActionsBusy = isUploadingWorks || isDeletingWork || isReorderingWork;
   const isAnyActionPending = Boolean(pendingKey);
   const selectedFolderId = selectedFolder?.id ?? null;
 
@@ -136,11 +141,25 @@ const WorksPage: React.FC = () => {
   const hasMoreWorks = visibleWorksCount < works.length;
   const isFoldersEmpty = !isFoldersLoading && folders.length === 0;
   const isWorksEmpty = !isWorksLoading && works.length === 0;
+  const folderIndexById = useMemo(
+    () => new Map(folders.map((folder, index) => [folder.id, index])),
+    [folders]
+  );
+  const workIndexById = useMemo(
+    () => new Map(works.map((work, index) => [work.id, index])),
+    [works]
+  );
   const currentIndex = selectedWork ? works.findIndex((work) => work.id === selectedWork.id) : -1;
   const canGoPrev = currentIndex > 0;
   const canGoNext = currentIndex >= 0 && currentIndex < works.length - 1;
 
   const apiHost = process.env.REACT_APP_API_URL ?? 'http://localhost:4000';
+  const siteUrl = process.env.REACT_APP_SITE_URL ?? 'https://rukotvornoe.ru';
+  const canonicalUrl = `${siteUrl}/works`;
+  const pageTitle = selectedFolder ? `${selectedFolder.title} — Работы | Рукотворное` : 'Все работы | Рукотворное';
+  const pageDescription = selectedFolder
+    ? `Работы в папке "${selectedFolder.title}". Авторские картины и фотографии работ.`
+    : 'Каталог работ: папки с авторскими картинами, акварелью и скетчами.';
 
   const selectedImageUrl = useMemo(() => {
     if (!selectedWork) return '';
@@ -264,6 +283,20 @@ const WorksPage: React.FC = () => {
     });
   };
 
+  const onMoveFolder = async (folder: Folder, direction: 'up' | 'down') => {
+    const actionKey = `move-folder-${folder.id}-${direction}`;
+    setPendingKey(actionKey);
+    try {
+      await reorderFolder({ id: folder.id, direction }).unwrap();
+      await refetchFolders();
+      toast.success('Порядок папок обновлен.');
+    } catch (error) {
+      notifyError(error);
+    } finally {
+      setPendingKey(null);
+    }
+  };
+
   const onSubmitUploadWorks = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!selectedFolder || uploadFiles.length === 0) return;
@@ -283,6 +316,20 @@ const WorksPage: React.FC = () => {
       await refetchFolderWorks();
       await refetchFolders();
       toast.success('Фотографии добавлены.');
+    } catch (error) {
+      notifyError(error);
+    } finally {
+      setPendingKey(null);
+    }
+  };
+
+  const onMoveWork = async (work: Work, direction: 'up' | 'down') => {
+    const actionKey = `move-work-${work.id}-${direction}`;
+    setPendingKey(actionKey);
+    try {
+      await reorderWork({ id: work.id, direction }).unwrap();
+      await refetchFolderWorks();
+      toast.success('Порядок работ обновлен.');
     } catch (error) {
       notifyError(error);
     } finally {
@@ -355,6 +402,15 @@ const WorksPage: React.FC = () => {
 
   return (
     <main className="works-page">
+      <Helmet>
+        <title>{pageTitle}</title>
+        <meta name="description" content={pageDescription} />
+        <link rel="canonical" href={canonicalUrl} />
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content={pageTitle} />
+        <meta property="og:description" content={pageDescription} />
+        <meta property="og:url" content={canonicalUrl} />
+      </Helmet>
       <header className="works-page__header">
         <div className="works-page__top">
           {!selectedFolder && <Link to="/" className="btn btn--ghost">На главную</Link>}
@@ -445,6 +501,32 @@ const WorksPage: React.FC = () => {
                   </button>
                   {showAdminUi && (
                     <div className="works-grid__admin-actions">
+                      <button
+                        type="button"
+                        className="btn btn--ghost works-grid__admin-btn"
+                        onClick={() => onMoveWork(work, 'up')}
+                        disabled={
+                          workActionsBusy ||
+                          isAnyActionPending ||
+                          (workIndexById.get(work.id) ?? -1) <= 0
+                        }
+                        aria-label="Переместить работу вверх"
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn--ghost works-grid__admin-btn"
+                        onClick={() => onMoveWork(work, 'down')}
+                        disabled={
+                          workActionsBusy ||
+                          isAnyActionPending ||
+                          (workIndexById.get(work.id) ?? -1) >= works.length - 1
+                        }
+                        aria-label="Переместить работу вниз"
+                      >
+                        ↓
+                      </button>
                       <button type="button" className="btn btn--ghost" onClick={() => onDeleteWork(work)} disabled={workActionsBusy || isAnyActionPending}>
                         {pendingKey === `delete-work-${work.id}` ? 'Удаляем...' : 'Удалить'}
                       </button>
@@ -509,6 +591,32 @@ const WorksPage: React.FC = () => {
                   </button>
                   {showAdminUi && (
                     <div className="works-grid__admin-actions">
+                      <button
+                        type="button"
+                        className="btn btn--ghost works-grid__admin-btn"
+                        onClick={() => onMoveFolder(folder, 'up')}
+                        disabled={
+                          folderActionsBusy ||
+                          isAnyActionPending ||
+                          (folderIndexById.get(folder.id) ?? -1) <= 0
+                        }
+                        aria-label="Переместить папку вверх"
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn--ghost works-grid__admin-btn"
+                        onClick={() => onMoveFolder(folder, 'down')}
+                        disabled={
+                          folderActionsBusy ||
+                          isAnyActionPending ||
+                          (folderIndexById.get(folder.id) ?? -1) >= folders.length - 1
+                        }
+                        aria-label="Переместить папку вниз"
+                      >
+                        ↓
+                      </button>
                       <button type="button" className="btn btn--ghost" onClick={() => openEditFolderModal(folder)} disabled={isAnyActionPending}>Изменить</button>
                       <button type="button" className="btn btn--ghost" onClick={() => onDeleteFolder(folder)} disabled={folderActionsBusy || isAnyActionPending}>
                         {pendingKey === `delete-folder-${folder.id}` ? 'Удаляем...' : 'Удалить'}

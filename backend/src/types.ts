@@ -10,6 +10,7 @@ export interface FolderRecord {
   title: string;
   slug: string;
   coverImageUrl: string;
+  sortOrder: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -19,6 +20,7 @@ export interface WorkRecord {
   folderId: string;
   title: string;
   imageUrl: string;
+  sortOrder: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -41,6 +43,7 @@ export interface PublicFolder {
   title: string;
   slug: string;
   coverImageUrl: string;
+  sortOrder: number;
   worksCount: number;
 }
 
@@ -48,6 +51,7 @@ export interface PublicWork {
   id: string;
   title: string;
   imageUrl: string;
+  sortOrder: number;
 }
 
 export interface PublicFolderDetails extends PublicFolder {

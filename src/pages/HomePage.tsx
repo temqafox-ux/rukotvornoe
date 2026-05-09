@@ -1,10 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { Helmet } from 'react-helmet-async';
 import Hero from '../components/Hero';
 import About from '../components/About';
 import QuoteBlocks from '../components/QuoteBlocks';
 import Contact from '../components/Contact';
 
 const HomePage: React.FC = () => {
+  const siteUrl = process.env.REACT_APP_SITE_URL ?? 'https://rukotvornoe.ru';
+  const canonicalUrl = `${siteUrl}/`;
+  const title = 'Рукотворное — авторские картины и скетчи';
+  const description = 'Авторские картины, акварель и скетчи. Посмотрите коллекции работ и свяжитесь для заказа.';
+
   const [isContactCtaVisible, setIsContactCtaVisible] = useState(false);
   const [isContactMenuOpen, setIsContactMenuOpen] = useState(false);
   const ctaRef = useRef<HTMLDivElement | null>(null);
@@ -57,6 +63,15 @@ const HomePage: React.FC = () => {
 
   return (
     <>
+      <Helmet>
+        <title>{title}</title>
+        <meta name="description" content={description} />
+        <link rel="canonical" href={canonicalUrl} />
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content={title} />
+        <meta property="og:description" content={description} />
+        <meta property="og:url" content={canonicalUrl} />
+      </Helmet>
       <Hero />
       <About />
       <QuoteBlocks />

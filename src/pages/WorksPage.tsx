@@ -33,6 +33,7 @@ const WorksPage: React.FC = () => {
   const [token, setToken] = useState(localStorage.getItem('admin_token'));
   const [isUserPreview, setIsUserPreview] = useState(localStorage.getItem('admin_preview_mode') === 'user');
   const [isMobileBackVisible, setIsMobileBackVisible] = useState(false);
+  const [shouldScrollOnBack, setShouldScrollOnBack] = useState(false);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
 
   const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
@@ -113,6 +114,28 @@ const WorksPage: React.FC = () => {
     localStorage.removeItem('admin_preview_mode');
   }, [isAdmin]);
 
+  useEffect(() => {
+    if (!selectedFolder || !shouldScrollOnBack) return;
+    setShouldScrollOnBack(false);
+  }, [selectedFolder, shouldScrollOnBack]);
+
+  useEffect(() => {
+    if (selectedFolder || !shouldScrollOnBack) return;
+
+    const rafId = window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, behavior: 'auto' });
+    });
+    const timeoutId = window.setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'auto' });
+      setShouldScrollOnBack(false);
+    }, 80);
+
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      window.clearTimeout(timeoutId);
+    };
+  }, [selectedFolder, shouldScrollOnBack]);
+
   const works = useMemo(() => folderDetails?.works ?? [], [folderDetails]);
   const visibleWorks = useMemo(() => works.slice(0, visibleWorksCount), [works, visibleWorksCount]);
   const hasMoreWorks = visibleWorksCount < works.length;
@@ -168,6 +191,9 @@ const WorksPage: React.FC = () => {
 
   useEffect(() => {
     setVisibleWorksCount(WORKS_PAGE_SIZE);
+    if (selectedFolder) {
+      window.scrollTo({ top: 0, behavior: 'auto' });
+    }
   }, [selectedFolder?.id]);
 
   const onLogout = async () => {
@@ -356,8 +382,8 @@ const WorksPage: React.FC = () => {
   };
 
   const handleBackToFolders = () => {
+    setShouldScrollOnBack(true);
     setSelectedFolder(null);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
@@ -403,11 +429,9 @@ const WorksPage: React.FC = () => {
       {selectedFolder ? (
         <>
           <div className="works-page__actions">
-            {(!isMobile || showAdminUi) && (
-              <button type="button" className="btn btn--ghost" onClick={handleBackToFolders}>
-                Назад
-              </button>
-            )}
+            <button type="button" className="btn btn--ghost" onClick={handleBackToFolders}>
+              Назад
+            </button>
             {showAdminUi && !isMobile && (
               <button
                 type="button"

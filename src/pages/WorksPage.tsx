@@ -557,7 +557,7 @@ const WorksPage: React.FC = () => {
               <a href="mailto:elfin.v@gmail.com">elfin.v@gmail.com</a>
             </div>
             <div className="contact__socials">
-              <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="contact__social-link" aria-label="Instagram">
+              <a href="https://instagram.com/gulyai_shalnaya" target="_blank" rel="noopener noreferrer" className="contact__social-link" aria-label="Instagram">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                   <rect x="2" y="2" width="20" height="20" rx="5" />
                   <circle cx="12" cy="12" r="5" />

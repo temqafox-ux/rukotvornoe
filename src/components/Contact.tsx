@@ -36,7 +36,7 @@ const Contact: React.FC = () => {
 
           <div className="contact__socials">
             <a
-              href="https://instagram.com"
+              href="https://instagram.com/gulyai_shalnaya"
               target="_blank"
               rel="noopener noreferrer"
               className="contact__social-link"

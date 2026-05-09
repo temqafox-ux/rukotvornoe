@@ -2,8 +2,8 @@ import 'dotenv/config';
 import cors from 'cors';
 import express from 'express';
 import multer from 'multer';
-import fs from 'node:fs/promises';
 import path from 'node:path';
+import sharp from 'sharp';
 import { z } from 'zod';
 import { ensureStorage, getUploadsDir, readDb, updateDb } from './store.js';
 import type { AuthPayload, FolderRecord, PublicFolder, PublicFolderDetails, PublicWork, WorkRecord } from './types.js';
@@ -23,6 +23,8 @@ const allowedOrigins = (process.env.CLIENT_ORIGIN ?? 'http://localhost:3000')
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
+const uploadMaxWidth = Math.max(800, Math.min(Number(process.env.UPLOAD_MAX_WIDTH ?? 1800), 4000));
+const uploadQuality = Math.max(60, Math.min(Number(process.env.UPLOAD_QUALITY ?? 82), 95));
 const publicDir = path.resolve(process.cwd(), '..', 'public');
 
 app.use(
@@ -38,7 +40,14 @@ app.use(
   })
 );
 app.use(express.json());
-app.use('/uploads', express.static(getUploadsDir()));
+app.use(
+  '/uploads',
+  express.static(getUploadsDir(), {
+    etag: true,
+    immutable: true,
+    maxAge: '365d'
+  })
+);
 app.use('/images', express.static(path.join(publicDir, 'images')));
 
 const folderSchema = z.object({
@@ -112,11 +121,18 @@ const requireAdmin = async (authorization?: string) => {
 };
 
 const saveUpload = async (file: Express.Multer.File) => {
-  const extension = path.extname(file.originalname) || '.jpg';
-  const filename = `${createId('asset')}${extension}`;
+  const filename = `${createId('asset')}.webp`;
   const destination = path.join(getUploadsDir(), filename);
 
-  await fs.writeFile(destination, file.buffer);
+  await sharp(file.buffer)
+    .rotate()
+    .resize({
+      width: uploadMaxWidth,
+      fit: 'inside',
+      withoutEnlargement: true
+    })
+    .webp({ quality: uploadQuality })
+    .toFile(destination);
 
   return `/uploads/${filename}`;
 };

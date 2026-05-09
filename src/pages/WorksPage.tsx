@@ -32,6 +32,7 @@ const WorksPage: React.FC = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth <= MOBILE_BREAKPOINT);
   const [token, setToken] = useState(localStorage.getItem('admin_token'));
   const [isUserPreview, setIsUserPreview] = useState(localStorage.getItem('admin_preview_mode') === 'user');
+  const [isMobileBackVisible, setIsMobileBackVisible] = useState(false);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
 
   const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
@@ -90,6 +91,21 @@ const WorksPage: React.FC = () => {
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = ''; };
   }, [selectedWork]);
+
+  useEffect(() => {
+    if (!isMobile || !selectedFolder || showAdminUi) {
+      setIsMobileBackVisible(false);
+      return;
+    }
+
+    const onScroll = () => {
+      setIsMobileBackVisible(window.scrollY > 80);
+    };
+
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [isMobile, selectedFolder, showAdminUi]);
 
   useEffect(() => {
     if (isAdmin) return;
@@ -351,15 +367,19 @@ const WorksPage: React.FC = () => {
           <Link to="/" className="btn btn--ghost">На главную</Link>
           {isAdmin && (
             <div className="works-page__admin-controls">
-              <span className="works-page__admin-state">
-                {isUserPreview ? 'Просмотр как пользователь' : 'Режим редактирования'}
-              </span>
-              <button type="button" className="btn btn--ghost" onClick={toggleAdminPreview} disabled={isAnyActionPending}>
-                {isUserPreview ? 'Вернуть админ-вид' : 'Смотреть как пользователь'}
-              </button>
-              <button type="button" className="btn btn--ghost" onClick={onLogout} disabled={isLoggingOut || isAnyActionPending}>
-                {isLoggingOut || pendingKey === 'logout' ? 'Выходим...' : 'Выйти'}
-              </button>
+              <div className="works-page__admin-row">
+                <span className="works-page__admin-state">
+                  {isUserPreview ? 'Просмотр как пользователь' : 'Режим редактирования'}
+                </span>
+                <button type="button" className="btn btn--ghost" onClick={onLogout} disabled={isLoggingOut || isAnyActionPending}>
+                  {isLoggingOut || pendingKey === 'logout' ? 'Выходим...' : 'Выйти'}
+                </button>
+              </div>
+              <label className="works-page__preview-toggle" aria-label="Переключить вид администратора">
+                <input type="checkbox" checked={isUserPreview} onChange={toggleAdminPreview} disabled={isAnyActionPending} />
+                <span className="works-page__preview-toggle-track" aria-hidden="true" />
+                <span className="works-page__preview-toggle-label">Смотреть как пользователь</span>
+              </label>
             </div>
           )}
         </div>
@@ -383,10 +403,12 @@ const WorksPage: React.FC = () => {
       {selectedFolder ? (
         <>
           <div className="works-page__actions">
-            <button type="button" className="btn btn--ghost" onClick={handleBackToFolders}>
-              Назад
-            </button>
-            {showAdminUi && (
+            {(!isMobile || showAdminUi) && (
+              <button type="button" className="btn btn--ghost" onClick={handleBackToFolders}>
+                Назад
+              </button>
+            )}
+            {showAdminUi && !isMobile && (
               <button
                 type="button"
                 className="btn"
@@ -629,7 +651,7 @@ const WorksPage: React.FC = () => {
         </div>
       )}
 
-      {selectedFolder && (
+      {selectedFolder && isMobile && showAdminUi && (
         <div className="works-mobile-actions" role="region" aria-label="Быстрые действия">
           <button type="button" className="btn btn--ghost" onClick={handleBackToFolders} disabled={isAnyActionPending}>
             Назад
@@ -644,6 +666,14 @@ const WorksPage: React.FC = () => {
               + Фото
             </button>
           )}
+        </div>
+      )}
+
+      {selectedFolder && isMobile && !showAdminUi && isMobileBackVisible && (
+        <div className="works-mobile-back-fab">
+          <button type="button" className="btn btn--ghost" onClick={handleBackToFolders} disabled={isAnyActionPending}>
+            Назад
+          </button>
         </div>
       )}
 

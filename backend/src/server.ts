@@ -3,6 +3,7 @@ import { DeleteObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client
 import { compareSync, hashSync } from 'bcryptjs';
 import cors from 'cors';
 import express from 'express';
+import helmet from 'helmet';
 import multer from 'multer';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -33,6 +34,7 @@ const allowedOrigins = (process.env.CLIENT_ORIGIN ?? 'http://localhost:3000')
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
+const trustProxyHops = Math.max(0, Number(process.env.TRUST_PROXY_HOPS ?? 1));
 const uploadMaxWidth = Math.max(800, Math.min(Number(process.env.UPLOAD_MAX_WIDTH ?? 1800), 4000));
 const uploadQuality = Math.max(60, Math.min(Number(process.env.UPLOAD_QUALITY ?? 82), 95));
 const passwordSaltRounds = Math.max(8, Math.min(Number(process.env.PASSWORD_SALT_ROUNDS ?? 10), 14));
@@ -57,6 +59,12 @@ const r2Client = isR2Enabled
 const publicDir = path.resolve(process.cwd(), '..', 'public');
 const loginAttemptMap = new Map<string, { count: number; resetAt: number }>();
 
+app.set('trust proxy', trustProxyHops);
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' }
+  })
+);
 app.use(
   cors({
     origin: (origin, callback) => {
@@ -183,7 +191,7 @@ const deleteAsset = async (assetUrl: string) => {
 };
 
 const getLoginRateLimitKey = (req: express.Request) => {
-  const ip = req.ip ?? 'unknown';
+  const ip = req.ip ?? req.socket.remoteAddress ?? 'unknown';
   return `ip:${ip}`;
 };
 

@@ -31,6 +31,7 @@ const WorksPage: React.FC = () => {
   const [selectedWork, setSelectedWork] = useState<Work | null>(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= MOBILE_BREAKPOINT);
   const [token, setToken] = useState(localStorage.getItem('admin_token'));
+  const [isUserPreview, setIsUserPreview] = useState(localStorage.getItem('admin_preview_mode') === 'user');
   const [pendingKey, setPendingKey] = useState<string | null>(null);
 
   const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
@@ -69,6 +70,7 @@ const WorksPage: React.FC = () => {
   const [deleteWork, { isLoading: isDeletingWork }] = useDeleteWorkMutation();
 
   const isAdmin = Boolean(token);
+  const showAdminUi = isAdmin && !isUserPreview;
   const folderActionsBusy = isCreatingFolder || isUpdatingFolder || isDeletingFolder;
   const workActionsBusy = isUploadingWorks || isUpdatingWork || isDeletingWork;
   const isAnyActionPending = Boolean(pendingKey);
@@ -88,6 +90,12 @@ const WorksPage: React.FC = () => {
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = ''; };
   }, [selectedWork]);
+
+  useEffect(() => {
+    if (isAdmin) return;
+    setIsUserPreview(false);
+    localStorage.removeItem('admin_preview_mode');
+  }, [isAdmin]);
 
   const works = useMemo(() => folderDetails?.works ?? [], [folderDetails]);
   const visibleWorks = useMemo(() => works.slice(0, visibleWorksCount), [works, visibleWorksCount]);
@@ -154,10 +162,18 @@ const WorksPage: React.FC = () => {
       // Пользователь должен иметь возможность выйти даже при временном сбое сети.
     } finally {
       localStorage.removeItem('admin_token');
+      localStorage.removeItem('admin_preview_mode');
       setToken(null);
+      setIsUserPreview(false);
       toast.success('Режим редактирования выключен.');
       setPendingKey(null);
     }
+  };
+
+  const toggleAdminPreview = () => {
+    const nextValue = !isUserPreview;
+    setIsUserPreview(nextValue);
+    localStorage.setItem('admin_preview_mode', nextValue ? 'user' : 'admin');
   };
 
   const onSubmitFolder = async (event: FormEvent<HTMLFormElement>) => {
@@ -323,6 +339,11 @@ const WorksPage: React.FC = () => {
     }
   };
 
+  const handleBackToFolders = () => {
+    setSelectedFolder(null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
     <main className="works-page">
       <header className="works-page__header">
@@ -330,7 +351,12 @@ const WorksPage: React.FC = () => {
           <Link to="/" className="btn btn--ghost">На главную</Link>
           {isAdmin && (
             <div className="works-page__admin-controls">
-              <span className="works-page__admin-state">Режим редактирования</span>
+              <span className="works-page__admin-state">
+                {isUserPreview ? 'Просмотр как пользователь' : 'Режим редактирования'}
+              </span>
+              <button type="button" className="btn btn--ghost" onClick={toggleAdminPreview} disabled={isAnyActionPending}>
+                {isUserPreview ? 'Вернуть админ-вид' : 'Смотреть как пользователь'}
+              </button>
               <button type="button" className="btn btn--ghost" onClick={onLogout} disabled={isLoggingOut || isAnyActionPending}>
                 {isLoggingOut || pendingKey === 'logout' ? 'Выходим...' : 'Выйти'}
               </button>
@@ -341,7 +367,7 @@ const WorksPage: React.FC = () => {
         <div className="section-divider" />
       </header>
 
-      {!selectedFolder && isAdmin && (
+      {!selectedFolder && showAdminUi && (
         <div className="works-page__actions">
           <button
             type="button"
@@ -357,10 +383,10 @@ const WorksPage: React.FC = () => {
       {selectedFolder ? (
         <>
           <div className="works-page__actions">
-            <button type="button" className="btn btn--ghost" onClick={() => setSelectedFolder(null)}>
+            <button type="button" className="btn btn--ghost" onClick={handleBackToFolders}>
               Назад
             </button>
-            {isAdmin && (
+            {showAdminUi && (
               <button
                 type="button"
                 className="btn"
@@ -399,7 +425,7 @@ const WorksPage: React.FC = () => {
                       <img src={toImageUrl(work.imageUrl)} alt={work.title} loading="lazy" decoding="async" />
                     </div>
                   </button>
-                  {isAdmin && (
+                  {showAdminUi && (
                     <div className="works-grid__admin-actions">
                       <button type="button" className="btn btn--ghost" onClick={() => openEditWorkModal(work)} disabled={isAnyActionPending}>Изменить</button>
                       <button type="button" className="btn btn--ghost" onClick={() => onDeleteWork(work)} disabled={workActionsBusy || isAnyActionPending}>
@@ -457,7 +483,7 @@ const WorksPage: React.FC = () => {
                   <h3 className="works-grid__title works-grid__title--folder">{folder.title}</h3>
                 </div>
               </button>
-              {isAdmin && (
+              {showAdminUi && (
                 <div className="works-grid__admin-actions">
                   <button type="button" className="btn btn--ghost" onClick={() => openEditFolderModal(folder)} disabled={isAnyActionPending}>Изменить</button>
                   <button type="button" className="btn btn--ghost" onClick={() => onDeleteFolder(folder)} disabled={folderActionsBusy || isAnyActionPending}>
@@ -605,10 +631,10 @@ const WorksPage: React.FC = () => {
 
       {selectedFolder && (
         <div className="works-mobile-actions" role="region" aria-label="Быстрые действия">
-          <button type="button" className="btn btn--ghost" onClick={() => setSelectedFolder(null)} disabled={isAnyActionPending}>
+          <button type="button" className="btn btn--ghost" onClick={handleBackToFolders} disabled={isAnyActionPending}>
             Назад
           </button>
-          {isAdmin && (
+          {showAdminUi && (
             <button
               type="button"
               className="btn"

@@ -1,9 +1,11 @@
 import type { AdminUser, DatabaseRecord, FolderRecord, SessionRecord, WorkRecord } from './types.js';
+import { hashSync } from 'bcryptjs';
 import { createId, nowIso } from './utils.js';
 
 const adminLogin = process.env.ADMIN_LOGIN ?? 'admin';
 const adminPassword = process.env.ADMIN_PASSWORD ?? 'admin123';
 const adminName = process.env.ADMIN_NAME ?? 'Администратор';
+const passwordSaltRounds = Math.max(8, Math.min(Number(process.env.PASSWORD_SALT_ROUNDS ?? 10), 14));
 
 const asString = (value: unknown, fallback = '') => (typeof value === 'string' && value.trim() ? value : fallback);
 
@@ -13,8 +15,9 @@ const toAdminUser = (value: unknown): AdminUser | null => {
 
   const id = asString(item.id, createId('admin'));
   const login = asString(item.login, adminLogin);
-  const password = asString(item.password, adminPassword);
+  const rawPassword = asString(item.password, adminPassword);
   const name = asString(item.name, adminName);
+  const password = rawPassword.startsWith('$2') ? rawPassword : hashSync(rawPassword, passwordSaltRounds);
 
   return { id, login, password, name };
 };
@@ -79,7 +82,7 @@ const toWorkRecord = (value: unknown): WorkRecord | null => {
 export const createDefaultAdminUser = (): AdminUser => ({
   id: createId('admin'),
   login: adminLogin,
-  password: adminPassword,
+  password: hashSync(adminPassword, passwordSaltRounds),
   name: adminName
 });
 

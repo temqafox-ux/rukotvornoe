@@ -1,5 +1,6 @@
 import 'dotenv/config';
-import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { compareSync, hashSync } from 'bcryptjs';
 import cors from 'cors';
 import express from 'express';
 import multer from 'multer';
@@ -10,8 +11,15 @@ import { z } from 'zod';
 import { ensureStorage, getUploadsDir, readDb, updateDb } from './store.js';
 import { createId, nowIso, slugify } from './utils.js';
 const app = express();
+const allowedImageMimeTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif']);
 const upload = multer({
     storage: multer.memoryStorage(),
+    fileFilter: (_req, file, callback) => {
+        if (!allowedImageMimeTypes.has(file.mimetype)) {
+            return callback(new Error('ONLY_IMAGE_FILES'));
+        }
+        return callback(null, true);
+    },
     limits: {
         fileSize: 10 * 1024 * 1024,
         files: 20
@@ -24,6 +32,9 @@ const allowedOrigins = (process.env.CLIENT_ORIGIN ?? 'http://localhost:3000')
     .filter(Boolean);
 const uploadMaxWidth = Math.max(800, Math.min(Number(process.env.UPLOAD_MAX_WIDTH ?? 1800), 4000));
 const uploadQuality = Math.max(60, Math.min(Number(process.env.UPLOAD_QUALITY ?? 82), 95));
+const passwordSaltRounds = Math.max(8, Math.min(Number(process.env.PASSWORD_SALT_ROUNDS ?? 10), 14));
+const loginRateLimitWindowMs = Math.max(60_000, Number(process.env.LOGIN_RATE_LIMIT_WINDOW_MS ?? 15 * 60_000));
+const loginRateLimitAttempts = Math.max(3, Number(process.env.LOGIN_RATE_LIMIT_ATTEMPTS ?? 10));
 const r2AccountId = process.env.R2_ACCOUNT_ID;
 const r2Bucket = process.env.R2_BUCKET;
 const r2AccessKeyId = process.env.R2_ACCESS_KEY_ID;
@@ -41,6 +52,7 @@ const r2Client = isR2Enabled
     })
     : null;
 const publicDir = path.resolve(process.cwd(), '..', 'public');
+const loginAttemptMap = new Map();
 app.use(cors({
     origin: (origin, callback) => {
         if (!origin || allowedOrigins.includes(origin)) {
@@ -112,6 +124,56 @@ const requireAdmin = async (authorization) => {
         }
     };
 };
+const isSystemImage = (url) => url.startsWith('/images/');
+const extractR2Key = (url) => {
+    if (!r2PublicBaseUrl || !url.startsWith(`${r2PublicBaseUrl}/`)) {
+        return null;
+    }
+    return url.slice(r2PublicBaseUrl.length + 1);
+};
+const deleteAsset = async (assetUrl) => {
+    if (!assetUrl || isSystemImage(assetUrl)) {
+        return;
+    }
+    const r2Key = extractR2Key(assetUrl);
+    if (r2Key && r2Client && r2Bucket) {
+        await r2Client.send(new DeleteObjectCommand({
+            Bucket: r2Bucket,
+            Key: r2Key
+        }));
+        return;
+    }
+    if (assetUrl.startsWith('/uploads/')) {
+        const fileName = path.basename(assetUrl);
+        const destination = path.join(getUploadsDir(), fileName);
+        await fs.rm(destination, { force: true });
+    }
+};
+const getLoginRateLimitKey = (req) => {
+    const ip = req.ip ?? 'unknown';
+    return `ip:${ip}`;
+};
+const isLoginRateLimited = (key) => {
+    const now = Date.now();
+    const snapshot = loginAttemptMap.get(key);
+    if (!snapshot)
+        return false;
+    if (snapshot.resetAt <= now) {
+        loginAttemptMap.delete(key);
+        return false;
+    }
+    return snapshot.count >= loginRateLimitAttempts;
+};
+const registerFailedLogin = (key) => {
+    const now = Date.now();
+    const current = loginAttemptMap.get(key);
+    if (!current || current.resetAt <= now) {
+        loginAttemptMap.set(key, { count: 1, resetAt: now + loginRateLimitWindowMs });
+        return;
+    }
+    current.count += 1;
+    loginAttemptMap.set(key, current);
+};
 const saveUpload = async (file) => {
     const filename = `${createId('asset')}.webp`;
     const optimizedBuffer = await sharp(file.buffer)
@@ -142,15 +204,40 @@ app.get('/api/health', (_req, res) => {
     res.json({ ok: true });
 });
 app.post('/api/auth/login', async (req, res) => {
+    const rateLimitKey = getLoginRateLimitKey(req);
+    if (isLoginRateLimited(rateLimitKey)) {
+        return res.status(429).json({ message: 'Слишком много попыток входа. Попробуйте позже.' });
+    }
     const payload = loginSchema.safeParse(req.body);
     if (!payload.success) {
         return res.status(400).json({ message: 'Некорректные данные для входа.' });
     }
     const db = await readDb();
-    const user = db.users.find((item) => item.login === payload.data.login && item.password === payload.data.password);
-    if (!user) {
+    const user = db.users.find((item) => item.login === payload.data.login);
+    let isPasswordValid = false;
+    let shouldUpgradePasswordHash = false;
+    if (user) {
+        if (user.password.startsWith('$2')) {
+            try {
+                isPasswordValid = compareSync(payload.data.password, user.password);
+            }
+            catch {
+                isPasswordValid = false;
+            }
+        }
+        else {
+            isPasswordValid = user.password === payload.data.password;
+            shouldUpgradePasswordHash = isPasswordValid;
+        }
+    }
+    if (!user || !isPasswordValid) {
+        registerFailedLogin(rateLimitKey);
         return res.status(401).json({ message: 'Неверный логин или пароль.' });
     }
+    if (shouldUpgradePasswordHash) {
+        user.password = hashSync(payload.data.password, passwordSaltRounds);
+    }
+    loginAttemptMap.delete(rateLimitKey);
     const token = createId('token');
     db.sessions = db.sessions.filter((item) => item.userId !== user.id);
     db.sessions.push({
@@ -243,6 +330,7 @@ app.patch('/api/admin/folders/:id', upload.single('cover'), async (req, res) => 
         if (!folder) {
             return null;
         }
+        const previousCoverImageUrl = folder.coverImageUrl;
         const baseSlug = slugify(payload.data.title);
         let slug = baseSlug;
         let suffix = 2;
@@ -256,30 +344,50 @@ app.patch('/api/admin/folders/:id', upload.single('cover'), async (req, res) => 
         if (req.file) {
             folder.coverImageUrl = await saveUpload(req.file);
         }
-        return resolveDetails(folder, db.works);
+        const shouldDeletePreviousCover = req.file &&
+            previousCoverImageUrl !== folder.coverImageUrl &&
+            !db.folders.some((item) => item.id !== folder.id && item.coverImageUrl === previousCoverImageUrl);
+        return {
+            details: resolveDetails(folder, db.works),
+            previousCoverToDelete: shouldDeletePreviousCover ? previousCoverImageUrl : null
+        };
     });
     if (!result) {
         return res.status(404).json({ message: 'Папка не найдена.' });
     }
-    return res.json(result);
+    if (result.previousCoverToDelete) {
+        await deleteAsset(result.previousCoverToDelete);
+    }
+    return res.json(result.details);
 });
 app.delete('/api/admin/folders/:id', async (req, res) => {
     const auth = await requireAdmin(req.headers.authorization);
     if (!auth) {
         return res.status(401).json({ message: 'Нужна авторизация.' });
     }
-    const deleted = await updateDb(async (db) => {
-        const folderExists = db.folders.some((folder) => folder.id === req.params.id);
-        if (!folderExists) {
-            return false;
+    const result = await updateDb(async (db) => {
+        const folder = db.folders.find((item) => item.id === req.params.id);
+        if (!folder) {
+            return null;
         }
-        db.folders = db.folders.filter((folder) => folder.id !== req.params.id);
+        const removedWorks = db.works.filter((work) => work.folderId === req.params.id);
+        db.folders = db.folders.filter((item) => item.id !== req.params.id);
         db.works = db.works.filter((work) => work.folderId !== req.params.id);
-        return true;
+        const urlsToDelete = new Set();
+        if (!isSystemImage(folder.coverImageUrl) && !db.folders.some((item) => item.coverImageUrl === folder.coverImageUrl)) {
+            urlsToDelete.add(folder.coverImageUrl);
+        }
+        for (const work of removedWorks) {
+            if (!db.works.some((item) => item.imageUrl === work.imageUrl)) {
+                urlsToDelete.add(work.imageUrl);
+            }
+        }
+        return Array.from(urlsToDelete);
     });
-    if (!deleted) {
+    if (!result) {
         return res.status(404).json({ message: 'Папка не найдена.' });
     }
+    await Promise.all(result.map((assetUrl) => deleteAsset(assetUrl)));
     return res.status(204).send();
 });
 app.post('/api/admin/folders/:id/works/upload', upload.array('files', 20), async (req, res) => {
@@ -330,37 +438,57 @@ app.patch('/api/admin/works/:id', upload.single('file'), async (req, res) => {
         if (!work) {
             return null;
         }
+        const previousImageUrl = work.imageUrl;
         work.title = payload.data.title;
         work.updatedAt = nowIso();
         if (req.file) {
             work.imageUrl = await saveUpload(req.file);
         }
-        return mapWork(work);
+        const shouldDeletePreviousImage = req.file &&
+            previousImageUrl !== work.imageUrl &&
+            !db.works.some((item) => item.id !== work.id && item.imageUrl === previousImageUrl);
+        return {
+            work: mapWork(work),
+            previousImageToDelete: shouldDeletePreviousImage ? previousImageUrl : null
+        };
     });
     if (!result) {
         return res.status(404).json({ message: 'Работа не найдена.' });
     }
-    return res.json(result);
+    if (result.previousImageToDelete) {
+        await deleteAsset(result.previousImageToDelete);
+    }
+    return res.json(result.work);
 });
 app.delete('/api/admin/works/:id', async (req, res) => {
     const auth = await requireAdmin(req.headers.authorization);
     if (!auth) {
         return res.status(401).json({ message: 'Нужна авторизация.' });
     }
-    const deleted = await updateDb(async (db) => {
-        const workExists = db.works.some((item) => item.id === req.params.id);
-        if (!workExists) {
-            return false;
+    const result = await updateDb(async (db) => {
+        const work = db.works.find((item) => item.id === req.params.id);
+        if (!work) {
+            return null;
         }
         db.works = db.works.filter((item) => item.id !== req.params.id);
-        return true;
+        const shouldDeleteImage = !db.works.some((item) => item.imageUrl === work.imageUrl);
+        return shouldDeleteImage ? work.imageUrl : null;
     });
-    if (!deleted) {
+    if (result === null) {
         return res.status(404).json({ message: 'Работа не найдена.' });
+    }
+    if (result) {
+        await deleteAsset(result);
     }
     return res.status(204).send();
 });
 app.use((error, _req, res, _next) => {
+    if (error instanceof multer.MulterError) {
+        return res.status(400).json({ message: 'Ошибка загрузки файла. Проверьте размер и формат.' });
+    }
+    if (error instanceof Error && error.message === 'ONLY_IMAGE_FILES') {
+        return res.status(400).json({ message: 'Можно загружать только изображения.' });
+    }
     console.error(error);
     return res.status(500).json({ message: 'Внутренняя ошибка сервера.' });
 });

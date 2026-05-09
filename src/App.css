@@ -986,7 +986,7 @@
 .works-grid__admin-actions {
   display: flex;
   gap: 0.5rem;
-  padding: 0 1rem 1rem;
+  padding: 0.7rem 1rem 1rem;
 }
 
 .work-modal {

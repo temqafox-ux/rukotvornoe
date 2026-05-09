@@ -11,7 +11,6 @@ import {
   useGetFoldersQuery,
   useLogoutMutation,
   useUpdateFolderMutation,
-  useUpdateWorkMutation,
   useUploadWorksMutation
 } from '../app/contentApi';
 
@@ -44,10 +43,6 @@ const WorksPage: React.FC = () => {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
 
-  const [isWorkModalOpen, setIsWorkModalOpen] = useState(false);
-  const [editingWork, setEditingWork] = useState<Work | null>(null);
-  const [workTitle, setWorkTitle] = useState('');
-  const [workFile, setWorkFile] = useState<File | null>(null);
   const [visibleWorksCount, setVisibleWorksCount] = useState(WORKS_PAGE_SIZE);
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
   const [isConfirmLoading, setIsConfirmLoading] = useState(false);
@@ -68,13 +63,12 @@ const WorksPage: React.FC = () => {
   const [updateFolder, { isLoading: isUpdatingFolder }] = useUpdateFolderMutation();
   const [deleteFolder, { isLoading: isDeletingFolder }] = useDeleteFolderMutation();
   const [uploadWorks, { isLoading: isUploadingWorks }] = useUploadWorksMutation();
-  const [updateWork, { isLoading: isUpdatingWork }] = useUpdateWorkMutation();
   const [deleteWork, { isLoading: isDeletingWork }] = useDeleteWorkMutation();
 
   const isAdmin = Boolean(token);
   const showAdminUi = isAdmin && !isUserPreview;
   const folderActionsBusy = isCreatingFolder || isUpdatingFolder || isDeletingFolder;
-  const workActionsBusy = isUploadingWorks || isUpdatingWork || isDeletingWork;
+  const workActionsBusy = isUploadingWorks || isDeletingWork;
   const isAnyActionPending = Boolean(pendingKey);
   const selectedFolderId = selectedFolder?.id ?? null;
 
@@ -296,36 +290,6 @@ const WorksPage: React.FC = () => {
     }
   };
 
-  const openEditWorkModal = (work: Work) => {
-    setEditingWork(work);
-    setWorkTitle(work.title);
-    setWorkFile(null);
-    setIsWorkModalOpen(true);
-  };
-
-  const onSubmitWorkEdit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!editingWork) return;
-    setPendingKey(`save-work-${editingWork.id}`);
-
-    const body = new FormData();
-    body.append('title', workTitle);
-    if (workFile) {
-      body.append('file', workFile);
-    }
-
-    try {
-      await updateWork({ id: editingWork.id, body }).unwrap();
-      setIsWorkModalOpen(false);
-      await refetchFolderWorks();
-      toast.success('Работа обновлена.');
-    } catch (error) {
-      notifyError(error);
-    } finally {
-      setPendingKey(null);
-    }
-  };
-
   const onDeleteWork = async (work: Work) => {
     openConfirmDialog({
       title: 'Удалить работу?',
@@ -393,7 +357,7 @@ const WorksPage: React.FC = () => {
     <main className="works-page">
       <header className="works-page__header">
         <div className="works-page__top">
-          <Link to="/" className="btn btn--ghost">На главную</Link>
+          {!selectedFolder && <Link to="/" className="btn btn--ghost">На главную</Link>}
           {isAdmin && (
             <div className="works-page__admin-controls">
               <div className="works-page__admin-row">
@@ -481,7 +445,6 @@ const WorksPage: React.FC = () => {
                   </button>
                   {showAdminUi && (
                     <div className="works-grid__admin-actions">
-                      <button type="button" className="btn btn--ghost" onClick={() => openEditWorkModal(work)} disabled={isAnyActionPending}>Изменить</button>
                       <button type="button" className="btn btn--ghost" onClick={() => onDeleteWork(work)} disabled={workActionsBusy || isAnyActionPending}>
                         {pendingKey === `delete-work-${work.id}` ? 'Удаляем...' : 'Удалить'}
                       </button>
@@ -663,29 +626,6 @@ const WorksPage: React.FC = () => {
               </label>
               <button type="submit" className="btn" disabled={workActionsBusy || uploadFiles.length === 0 || isAnyActionPending}>
                 {pendingKey === 'upload-works' ? 'Загружаем...' : `Загрузить ${uploadFiles.length > 0 ? `(${uploadFiles.length})` : ''}`}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {isWorkModalOpen && editingWork && (
-        <div className="work-modal work-modal--open" role="dialog" aria-modal="true">
-          <div className="work-modal__overlay" onClick={() => setIsWorkModalOpen(false)} />
-          <div className="work-modal__dialog work-modal__dialog--form">
-            <button className="work-modal__close" onClick={() => setIsWorkModalOpen(false)} aria-label="Закрыть">×</button>
-            <h2 className="work-modal__title">Редактирование работы</h2>
-            <form className="admin-form" onSubmit={onSubmitWorkEdit}>
-              <label className="admin-form__field">
-                Название
-                <input value={workTitle} onChange={(event) => setWorkTitle(event.target.value)} required />
-              </label>
-              <label className="admin-form__field">
-                Заменить фото
-                <input type="file" accept="image/*" onChange={(event) => setWorkFile(event.target.files?.[0] ?? null)} />
-              </label>
-              <button type="submit" className="btn" disabled={workActionsBusy || isAnyActionPending}>
-                {pendingKey === `save-work-${editingWork.id}` ? 'Сохраняем...' : 'Сохранить'}
               </button>
             </form>
           </div>

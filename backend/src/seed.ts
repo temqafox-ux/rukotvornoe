@@ -9,6 +9,20 @@ const passwordSaltRounds = Math.max(8, Math.min(Number(process.env.PASSWORD_SALT
 
 const asString = (value: unknown, fallback = '') => (typeof value === 'string' && value.trim() ? value : fallback);
 const asNumber = (value: unknown, fallback = 0) => (typeof value === 'number' && Number.isFinite(value) ? value : fallback);
+const asDetails = (value: unknown): Array<{ key: string; value: string }> => {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((item) => {
+      if (!item || typeof item !== 'object') return null;
+      const candidate = item as Record<string, unknown>;
+      const key = asString(candidate.key).trim();
+      const detailValue = asString(candidate.value).trim();
+      if (!key || !detailValue) return null;
+      return { key, value: detailValue };
+    })
+    .filter((item): item is { key: string; value: string } => Boolean(item));
+};
 
 const toAdminUser = (value: unknown): AdminUser | null => {
   if (!value || typeof value !== 'object') return null;
@@ -76,6 +90,7 @@ const toWorkRecord = (value: unknown): WorkRecord | null => {
     folderId,
     title,
     imageUrl,
+    details: asDetails(item.details),
     sortOrder: Math.max(0, asNumber(item.sortOrder, 0)),
     createdAt: asString(item.createdAt, nowIso()),
     updatedAt: asString(item.updatedAt, nowIso())

@@ -15,6 +15,7 @@ import {
   useReorderFolderMutation,
   useReorderWorkMutation,
   useUpdateFolderMutation,
+  useUpdateWorkMutation,
   useUploadWorksMutation
 } from '../app/contentApi';
 
@@ -27,6 +28,11 @@ interface ConfirmDialogState {
   description: string;
   confirmLabel: string;
   action: () => Promise<void>;
+}
+
+interface WorkDetailDraft {
+  key: string;
+  value: string;
 }
 
 const WorksPage: React.FC = () => {
@@ -46,6 +52,8 @@ const WorksPage: React.FC = () => {
 
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
+  const [editingWorkDetails, setEditingWorkDetails] = useState<Work | null>(null);
+  const [workDetailsDraft, setWorkDetailsDraft] = useState<WorkDetailDraft[]>([]);
 
   const [visibleWorksCount, setVisibleWorksCount] = useState(WORKS_PAGE_SIZE);
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
@@ -70,11 +78,12 @@ const WorksPage: React.FC = () => {
   const [uploadWorks, { isLoading: isUploadingWorks }] = useUploadWorksMutation();
   const [deleteWork, { isLoading: isDeletingWork }] = useDeleteWorkMutation();
   const [reorderWork, { isLoading: isReorderingWork }] = useReorderWorkMutation();
+  const [updateWork, { isLoading: isUpdatingWork }] = useUpdateWorkMutation();
 
   const isAdmin = Boolean(token);
   const showAdminUi = isAdmin && !isUserPreview;
   const folderActionsBusy = isCreatingFolder || isUpdatingFolder || isDeletingFolder || isReorderingFolder;
-  const workActionsBusy = isUploadingWorks || isDeletingWork || isReorderingWork;
+  const workActionsBusy = isUploadingWorks || isDeletingWork || isReorderingWork || isUpdatingWork;
   const isAnyActionPending = Boolean(pendingKey);
   const selectedFolderId = selectedFolder?.id ?? null;
 
@@ -358,6 +367,72 @@ const WorksPage: React.FC = () => {
     });
   };
 
+  const openWorkDetailsModal = (work: Work) => {
+    const currentDetails = Array.isArray(work.details) ? work.details : [];
+    setEditingWorkDetails(work);
+    setWorkDetailsDraft(
+      currentDetails.length > 0
+        ? currentDetails.map((detail) => ({ key: detail.key, value: detail.value }))
+        : [{ key: '', value: '' }]
+    );
+  };
+
+  const closeWorkDetailsModal = () => {
+    if (isUpdatingWork || pendingKey === 'save-work-details') return;
+    setEditingWorkDetails(null);
+    setWorkDetailsDraft([]);
+  };
+
+  const updateDraftRow = (index: number, field: 'key' | 'value', value: string) => {
+    setWorkDetailsDraft((rows) =>
+      rows.map((row, rowIndex) => (rowIndex === index ? { ...row, [field]: value } : row))
+    );
+  };
+
+  const addDraftRow = () => {
+    setWorkDetailsDraft((rows) => [...rows, { key: '', value: '' }]);
+  };
+
+  const removeDraftRow = (index: number) => {
+    setWorkDetailsDraft((rows) => rows.filter((_row, rowIndex) => rowIndex !== index));
+  };
+
+  const onSaveWorkDetails = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!editingWorkDetails) return;
+
+    const normalizedDetails = workDetailsDraft
+      .map((row) => ({ key: row.key.trim(), value: row.value.trim() }))
+      .filter((row) => row.key.length > 0 || row.value.length > 0);
+
+    const invalidRow = normalizedDetails.some((row) => !row.key || !row.value);
+    if (invalidRow) {
+      toast.error('Для каждой строки заполните и ключ, и значение.');
+      return;
+    }
+
+    if (normalizedDetails.length > 12) {
+      toast.error('Можно добавить не больше 12 параметров.');
+      return;
+    }
+
+    setPendingKey('save-work-details');
+    try {
+      const body = new FormData();
+      body.append('title', editingWorkDetails.title);
+      body.append('details', JSON.stringify(normalizedDetails));
+      await updateWork({ id: editingWorkDetails.id, body }).unwrap();
+      await refetchFolderWorks();
+      toast.success('Параметры работы сохранены.');
+      setEditingWorkDetails(null);
+      setWorkDetailsDraft([]);
+    } catch (error) {
+      notifyError(error);
+    } finally {
+      setPendingKey(null);
+    }
+  };
+
   const onConfirmDialogAction = async () => {
     if (!confirmDialog) return;
     setIsConfirmLoading(true);
@@ -500,8 +575,29 @@ const WorksPage: React.FC = () => {
                       <img src={toImageUrl(work.imageUrl)} alt={work.title} loading="lazy" decoding="async" />
                     </div>
                   </button>
+                  <div className="works-grid__info works-grid__info--work">
+                    {(work.details ?? []).length > 0 ? (
+                      (work.details ?? []).map((detail, detailIndex) => (
+                        <p key={`${work.id}-${detail.key}-${detailIndex}`} className="works-grid__meta-line">
+                          <span className="works-grid__meta-key">{detail.key}:</span> {detail.value}
+                        </p>
+                      ))
+                    ) : (
+                      <p className="works-grid__meta-line works-grid__meta-line--empty" aria-hidden="true">
+                        {' '}
+                      </p>
+                    )}
+                  </div>
                   {showAdminUi && (
                     <div className="works-grid__admin-actions">
+                      <button
+                        type="button"
+                        className="btn btn--ghost"
+                        onClick={() => openWorkDetailsModal(work)}
+                        disabled={workActionsBusy || isAnyActionPending}
+                      >
+                        Параметры
+                      </button>
                       <button
                         type="button"
                         className="btn btn--ghost works-grid__admin-btn"
@@ -721,7 +817,70 @@ const WorksPage: React.FC = () => {
             </div>
             <div className="work-modal__info">
               <span className="work-modal__counter">{currentIndex + 1} из {works.length}</span>
+              {(selectedWork.details ?? []).length > 0 && (
+                <div className="work-modal__meta">
+                  {(selectedWork.details ?? []).map((detail, detailIndex) => (
+                    <p key={`${selectedWork.id}-${detail.key}-${detailIndex}`} className="work-modal__meta-line">
+                      <span className="work-modal__meta-key">{detail.key}:</span> {detail.value}
+                    </p>
+                  ))}
+                </div>
+              )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {editingWorkDetails && (
+        <div className="work-modal work-modal--open" role="dialog" aria-modal="true">
+          <div className="work-modal__overlay" onClick={closeWorkDetailsModal} />
+          <div className="work-modal__dialog work-modal__dialog--form">
+            <button className="work-modal__close" onClick={closeWorkDetailsModal} aria-label="Закрыть">×</button>
+            <h2 className="work-modal__title">Параметры работы</h2>
+            <form className="admin-form" onSubmit={onSaveWorkDetails}>
+              {workDetailsDraft.map((row, index) => (
+                <div key={`detail-row-${index}`} className="works-page__detail-row">
+                  <label className="admin-form__field">
+                    Ключ
+                    <input
+                      value={row.key}
+                      maxLength={60}
+                      placeholder="Например: Размер"
+                      onChange={(event) => updateDraftRow(index, 'key', event.target.value)}
+                    />
+                  </label>
+                  <label className="admin-form__field">
+                    Значение
+                    <input
+                      value={row.value}
+                      maxLength={200}
+                      placeholder="Например: 60x100"
+                      onChange={(event) => updateDraftRow(index, 'value', event.target.value)}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="btn btn--ghost works-page__detail-remove"
+                    onClick={() => removeDraftRow(index)}
+                    disabled={workDetailsDraft.length <= 1 || pendingKey === 'save-work-details' || isUpdatingWork}
+                    aria-label="Удалить строку параметра"
+                  >
+                    Удалить
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                className="btn btn--ghost"
+                onClick={addDraftRow}
+                disabled={workDetailsDraft.length >= 12 || pendingKey === 'save-work-details' || isUpdatingWork}
+              >
+                + Добавить параметр
+              </button>
+              <button type="submit" className="btn" disabled={pendingKey === 'save-work-details' || isUpdatingWork}>
+                {pendingKey === 'save-work-details' || isUpdatingWork ? 'Сохраняем...' : 'Сохранить параметры'}
+              </button>
+            </form>
           </div>
         </div>
       )}

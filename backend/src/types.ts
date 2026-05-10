@@ -20,6 +20,10 @@ export interface WorkRecord {
   folderId: string;
   title: string;
   imageUrl: string;
+  details: Array<{
+    key: string;
+    value: string;
+  }>;
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
@@ -51,6 +55,10 @@ export interface PublicWork {
   id: string;
   title: string;
   imageUrl: string;
+  details: Array<{
+    key: string;
+    value: string;
+  }>;
   sortOrder: number;
 }
 

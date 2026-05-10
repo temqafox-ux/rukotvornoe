@@ -78,8 +78,16 @@ app.use('/images', express.static(path.join(publicDir, 'images')));
 const folderSchema = z.object({
     title: z.string().trim().min(2)
 });
-const workSchema = z.object({
-    title: z.string().trim().min(2)
+const workDetailsSchema = z.array(z.object({
+    key: z.string().trim().min(1).max(60),
+    value: z.string().trim().min(1).max(200)
+})).max(12);
+const workUpdateSchema = z.object({
+    title: z.string().trim().min(1).max(160),
+    details: z.array(z.object({
+        key: z.string().trim().min(1).max(60),
+        value: z.string().trim().min(1).max(200)
+    })).max(12)
 });
 const reorderSchema = z.object({
     direction: z.enum(['up', 'down'])
@@ -94,6 +102,7 @@ const mapWork = (work) => ({
     id: work.id,
     title: work.title,
     imageUrl: work.imageUrl,
+    details: work.details,
     sortOrder: work.sortOrder
 });
 const mapFolder = (folder, works) => ({
@@ -212,6 +221,25 @@ const saveUpload = async (file) => {
     const destination = path.join(getUploadsDir(), filename);
     await fs.writeFile(destination, optimizedBuffer);
     return `/uploads/${filename}`;
+};
+const parseWorkDetails = (raw) => {
+    if (raw === undefined || raw === null || raw === '') {
+        return { success: true, data: [] };
+    }
+    if (typeof raw !== 'string') {
+        return { success: false };
+    }
+    try {
+        const parsed = JSON.parse(raw);
+        const result = workDetailsSchema.safeParse(parsed);
+        if (!result.success) {
+            return { success: false };
+        }
+        return { success: true, data: result.data };
+    }
+    catch {
+        return { success: false };
+    }
 };
 app.get('/api/health', (_req, res) => {
     res.json({ ok: true });
@@ -462,6 +490,7 @@ app.post('/api/admin/folders/:id/works/upload', upload.array('files', 20), async
                 folderId: folder.id,
                 title: String(req.body[`title_${index}`] ?? file.originalname.replace(/\.[^.]+$/, '')),
                 imageUrl: await saveUpload(file),
+                details: [],
                 sortOrder: nextSortOrder,
                 createdAt: nowIso(),
                 updatedAt: nowIso()
@@ -482,9 +511,14 @@ app.patch('/api/admin/works/:id', upload.single('file'), async (req, res) => {
     if (!auth) {
         return res.status(401).json({ message: 'Нужна авторизация.' });
     }
-    const payload = workSchema.safeParse(req.body);
+    const title = typeof req.body.title === 'string' ? req.body.title.trim() : '';
+    const parsedDetails = parseWorkDetails(req.body.details);
+    const payload = workUpdateSchema.safeParse({
+        title,
+        details: parsedDetails.success ? parsedDetails.data : null
+    });
     if (!payload.success) {
-        return res.status(400).json({ message: 'Заполните название работы.' });
+        return res.status(400).json({ message: 'Проверьте название и параметры работы.' });
     }
     const result = await updateDb(async (db) => {
         const work = db.works.find((item) => item.id === req.params.id);
@@ -493,6 +527,7 @@ app.patch('/api/admin/works/:id', upload.single('file'), async (req, res) => {
         }
         const previousImageUrl = work.imageUrl;
         work.title = payload.data.title;
+        work.details = payload.data.details;
         work.updatedAt = nowIso();
         if (req.file) {
             work.imageUrl = await saveUpload(req.file);

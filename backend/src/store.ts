@@ -57,6 +57,7 @@ const createSchema = (db: Database.Database) => {
       folderId TEXT NOT NULL,
       title TEXT NOT NULL,
       imageUrl TEXT NOT NULL,
+      details TEXT NOT NULL DEFAULT '[]',
       sortOrder INTEGER NOT NULL DEFAULT 0,
       createdAt TEXT NOT NULL,
       updatedAt TEXT NOT NULL,
@@ -76,6 +77,7 @@ const createSchema = (db: Database.Database) => {
 
   ensureColumn('folders', 'sortOrder', 'INTEGER NOT NULL DEFAULT 0');
   ensureColumn('works', 'sortOrder', 'INTEGER NOT NULL DEFAULT 0');
+  ensureColumn('works', 'details', "TEXT NOT NULL DEFAULT '[]'");
 
   const foldersWithoutOrder = db
     .prepare('SELECT id FROM folders WHERE sortOrder = 0 ORDER BY createdAt ASC')
@@ -105,7 +107,36 @@ const readDbSync = (db: Database.Database): DatabaseRecord => ({
   users: db.prepare('SELECT id, login, password, name FROM users').all() as DatabaseRecord['users'],
   sessions: db.prepare('SELECT token, userId, createdAt FROM sessions').all() as DatabaseRecord['sessions'],
   folders: db.prepare('SELECT id, title, slug, coverImageUrl, sortOrder, createdAt, updatedAt FROM folders').all() as DatabaseRecord['folders'],
-  works: db.prepare('SELECT id, folderId, title, imageUrl, sortOrder, createdAt, updatedAt FROM works').all() as DatabaseRecord['works']
+  works: (
+    db.prepare('SELECT id, folderId, title, imageUrl, details, sortOrder, createdAt, updatedAt FROM works').all() as Array<
+      Omit<DatabaseRecord['works'][number], 'details'> & { details?: string }
+    >
+  ).map((work) => {
+    const parsedDetails = (() => {
+      if (typeof work.details !== 'string' || !work.details.trim()) return [];
+      try {
+        const value = JSON.parse(work.details) as unknown;
+        if (!Array.isArray(value)) return [];
+        return value
+          .map((item) => {
+            if (!item || typeof item !== 'object') return null;
+            const candidate = item as Record<string, unknown>;
+            const key = typeof candidate.key === 'string' ? candidate.key.trim() : '';
+            const detailValue = typeof candidate.value === 'string' ? candidate.value.trim() : '';
+            if (!key || !detailValue) return null;
+            return { key, value: detailValue };
+          })
+          .filter((item): item is { key: string; value: string } => Boolean(item));
+      } catch {
+        return [];
+      }
+    })();
+
+    return {
+      ...work,
+      details: parsedDetails
+    };
+  })
 });
 
 const replaceDbSync = (db: Database.Database, data: DatabaseRecord) => {
@@ -133,10 +164,19 @@ const replaceDbSync = (db: Database.Database, data: DatabaseRecord) => {
     }
 
     const insertWork = db.prepare(
-      'INSERT INTO works (id, folderId, title, imageUrl, sortOrder, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO works (id, folderId, title, imageUrl, details, sortOrder, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
     );
     for (const work of payload.works) {
-      insertWork.run(work.id, work.folderId, work.title, work.imageUrl, work.sortOrder, work.createdAt, work.updatedAt);
+      insertWork.run(
+        work.id,
+        work.folderId,
+        work.title,
+        work.imageUrl,
+        JSON.stringify(work.details),
+        work.sortOrder,
+        work.createdAt,
+        work.updatedAt
+      );
     }
   });
 

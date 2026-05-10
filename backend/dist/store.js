@@ -50,6 +50,7 @@ const createSchema = (db) => {
       folderId TEXT NOT NULL,
       title TEXT NOT NULL,
       imageUrl TEXT NOT NULL,
+      details TEXT NOT NULL DEFAULT '[]',
       sortOrder INTEGER NOT NULL DEFAULT 0,
       createdAt TEXT NOT NULL,
       updatedAt TEXT NOT NULL,
@@ -67,6 +68,7 @@ const createSchema = (db) => {
     };
     ensureColumn('folders', 'sortOrder', 'INTEGER NOT NULL DEFAULT 0');
     ensureColumn('works', 'sortOrder', 'INTEGER NOT NULL DEFAULT 0');
+    ensureColumn('works', 'details', "TEXT NOT NULL DEFAULT '[]'");
     const foldersWithoutOrder = db
         .prepare('SELECT id FROM folders WHERE sortOrder = 0 ORDER BY createdAt ASC')
         .all();
@@ -93,7 +95,36 @@ const readDbSync = (db) => ({
     users: db.prepare('SELECT id, login, password, name FROM users').all(),
     sessions: db.prepare('SELECT token, userId, createdAt FROM sessions').all(),
     folders: db.prepare('SELECT id, title, slug, coverImageUrl, sortOrder, createdAt, updatedAt FROM folders').all(),
-    works: db.prepare('SELECT id, folderId, title, imageUrl, sortOrder, createdAt, updatedAt FROM works').all()
+    works: db.prepare('SELECT id, folderId, title, imageUrl, details, sortOrder, createdAt, updatedAt FROM works').all().map((work) => {
+        const parsedDetails = (() => {
+            if (typeof work.details !== 'string' || !work.details.trim())
+                return [];
+            try {
+                const value = JSON.parse(work.details);
+                if (!Array.isArray(value))
+                    return [];
+                return value
+                    .map((item) => {
+                    if (!item || typeof item !== 'object')
+                        return null;
+                    const candidate = item;
+                    const key = typeof candidate.key === 'string' ? candidate.key.trim() : '';
+                    const detailValue = typeof candidate.value === 'string' ? candidate.value.trim() : '';
+                    if (!key || !detailValue)
+                        return null;
+                    return { key, value: detailValue };
+                })
+                    .filter((item) => Boolean(item));
+            }
+            catch {
+                return [];
+            }
+        })();
+        return {
+            ...work,
+            details: parsedDetails
+        };
+    })
 });
 const replaceDbSync = (db, data) => {
     const apply = db.transaction((payload) => {
@@ -113,9 +144,9 @@ const replaceDbSync = (db, data) => {
         for (const folder of payload.folders) {
             insertFolder.run(folder.id, folder.title, folder.slug, folder.coverImageUrl, folder.sortOrder, folder.createdAt, folder.updatedAt);
         }
-        const insertWork = db.prepare('INSERT INTO works (id, folderId, title, imageUrl, sortOrder, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)');
+        const insertWork = db.prepare('INSERT INTO works (id, folderId, title, imageUrl, details, sortOrder, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
         for (const work of payload.works) {
-            insertWork.run(work.id, work.folderId, work.title, work.imageUrl, work.sortOrder, work.createdAt, work.updatedAt);
+            insertWork.run(work.id, work.folderId, work.title, work.imageUrl, JSON.stringify(work.details), work.sortOrder, work.createdAt, work.updatedAt);
         }
     });
     apply(data);

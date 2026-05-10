@@ -78,16 +78,10 @@ app.use('/images', express.static(path.join(publicDir, 'images')));
 const folderSchema = z.object({
     title: z.string().trim().min(2)
 });
-const workDetailsSchema = z.array(z.object({
-    key: z.string().trim().min(1).max(60),
-    value: z.string().trim().min(1).max(200)
-})).max(12);
+const workDetailsSchema = z.array(z.string().trim().min(1).max(200)).max(12);
 const workUpdateSchema = z.object({
-    title: z.string().trim().min(1).max(160),
-    details: z.array(z.object({
-        key: z.string().trim().min(1).max(60),
-        value: z.string().trim().min(1).max(200)
-    })).max(12)
+    title: z.string().trim().max(160),
+    details: z.array(z.string().trim().min(1).max(200)).max(12)
 });
 const reorderSchema = z.object({
     direction: z.enum(['up', 'down'])
@@ -231,7 +225,19 @@ const parseWorkDetails = (raw) => {
     }
     try {
         const parsed = JSON.parse(raw);
-        const result = workDetailsSchema.safeParse(parsed);
+        const normalized = Array.isArray(parsed)
+            ? parsed.map((item) => {
+                if (typeof item === 'string')
+                    return item.trim();
+                if (!item || typeof item !== 'object')
+                    return '';
+                const candidate = item;
+                const key = typeof candidate.key === 'string' ? candidate.key.trim() : '';
+                const value = typeof candidate.value === 'string' ? candidate.value.trim() : '';
+                return key && value ? `${key}: ${value}` : '';
+            }).filter(Boolean)
+            : parsed;
+        const result = workDetailsSchema.safeParse(normalized);
         if (!result.success) {
             return { success: false };
         }
@@ -488,7 +494,7 @@ app.post('/api/admin/folders/:id/works/upload', upload.array('files', 20), async
             const work = {
                 id: createId('work'),
                 folderId: folder.id,
-                title: String(req.body[`title_${index}`] ?? file.originalname.replace(/\.[^.]+$/, '')),
+                title: '',
                 imageUrl: await saveUpload(file),
                 details: [],
                 sortOrder: nextSortOrder,

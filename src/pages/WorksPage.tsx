@@ -30,11 +30,6 @@ interface ConfirmDialogState {
   action: () => Promise<void>;
 }
 
-interface WorkDetailDraft {
-  key: string;
-  value: string;
-}
-
 const WorksPage: React.FC = () => {
   const [selectedFolder, setSelectedFolder] = useState<Folder | null>(null);
   const [selectedWork, setSelectedWork] = useState<Work | null>(null);
@@ -53,7 +48,8 @@ const WorksPage: React.FC = () => {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
   const [editingWorkDetails, setEditingWorkDetails] = useState<Work | null>(null);
-  const [workDetailsDraft, setWorkDetailsDraft] = useState<WorkDetailDraft[]>([]);
+  const [editingWorkTitle, setEditingWorkTitle] = useState('');
+  const [workDetailsDraft, setWorkDetailsDraft] = useState<string[]>([]);
 
   const [visibleWorksCount, setVisibleWorksCount] = useState(WORKS_PAGE_SIZE);
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
@@ -313,10 +309,8 @@ const WorksPage: React.FC = () => {
     setPendingKey('upload-works');
 
     const body = new FormData();
-    uploadFiles.forEach((file, index) => {
-      const title = file.name.replace(/\.[^.]+$/, '');
+    uploadFiles.forEach((file) => {
       body.append('files', file);
-      body.append(`title_${index}`, title);
     });
 
     try {
@@ -348,9 +342,10 @@ const WorksPage: React.FC = () => {
   };
 
   const onDeleteWork = async (work: Work) => {
+    const workName = work.title.trim() || 'без названия';
     openConfirmDialog({
       title: 'Удалить работу?',
-      description: `Работа "${work.title}" будет удалена без возможности восстановления.`,
+      description: `Работа "${workName}" будет удалена без возможности восстановления.`,
       confirmLabel: 'Удалить',
       action: async () => {
         const actionKey = `delete-work-${work.id}`;
@@ -370,27 +365,25 @@ const WorksPage: React.FC = () => {
   const openWorkDetailsModal = (work: Work) => {
     const currentDetails = Array.isArray(work.details) ? work.details : [];
     setEditingWorkDetails(work);
-    setWorkDetailsDraft(
-      currentDetails.length > 0
-        ? currentDetails.map((detail) => ({ key: detail.key, value: detail.value }))
-        : [{ key: '', value: '' }]
-    );
+    setEditingWorkTitle(work.title);
+    setWorkDetailsDraft(currentDetails.length > 0 ? currentDetails : ['']);
   };
 
   const closeWorkDetailsModal = () => {
     if (isUpdatingWork || pendingKey === 'save-work-details') return;
     setEditingWorkDetails(null);
+    setEditingWorkTitle('');
     setWorkDetailsDraft([]);
   };
 
-  const updateDraftRow = (index: number, field: 'key' | 'value', value: string) => {
+  const updateDraftRow = (index: number, value: string) => {
     setWorkDetailsDraft((rows) =>
-      rows.map((row, rowIndex) => (rowIndex === index ? { ...row, [field]: value } : row))
+      rows.map((row, rowIndex) => (rowIndex === index ? value : row))
     );
   };
 
   const addDraftRow = () => {
-    setWorkDetailsDraft((rows) => [...rows, { key: '', value: '' }]);
+    setWorkDetailsDraft((rows) => [...rows, '']);
   };
 
   const removeDraftRow = (index: number) => {
@@ -402,14 +395,10 @@ const WorksPage: React.FC = () => {
     if (!editingWorkDetails) return;
 
     const normalizedDetails = workDetailsDraft
-      .map((row) => ({ key: row.key.trim(), value: row.value.trim() }))
-      .filter((row) => row.key.length > 0 || row.value.length > 0);
+      .map((row) => row.trim())
+      .filter(Boolean);
 
-    const invalidRow = normalizedDetails.some((row) => !row.key || !row.value);
-    if (invalidRow) {
-      toast.error('Для каждой строки заполните и ключ, и значение.');
-      return;
-    }
+    const normalizedTitle = editingWorkTitle.trim();
 
     if (normalizedDetails.length > 12) {
       toast.error('Можно добавить не больше 12 параметров.');
@@ -419,12 +408,13 @@ const WorksPage: React.FC = () => {
     setPendingKey('save-work-details');
     try {
       const body = new FormData();
-      body.append('title', editingWorkDetails.title);
+      body.append('title', normalizedTitle);
       body.append('details', JSON.stringify(normalizedDetails));
       await updateWork({ id: editingWorkDetails.id, body }).unwrap();
       await refetchFolderWorks();
       toast.success('Параметры работы сохранены.');
       setEditingWorkDetails(null);
+      setEditingWorkTitle('');
       setWorkDetailsDraft([]);
     } catch (error) {
       notifyError(error);
@@ -569,17 +559,18 @@ const WorksPage: React.FC = () => {
                     type="button"
                     className="works-grid__card-hit"
                     onClick={() => handleWorkCardClick(work)}
-                    aria-label={work.title}
+                    aria-label={work.title.trim() || 'Работа'}
                   >
                     <div className="works-grid__img">
-                      <img src={toImageUrl(work.imageUrl)} alt={work.title} loading="lazy" decoding="async" />
+                      <img src={toImageUrl(work.imageUrl)} alt={work.title.trim() || 'Работа'} loading="lazy" decoding="async" />
                     </div>
                   </button>
                   <div className="works-grid__info works-grid__info--work">
+                    {work.title.trim() && <p className="works-grid__meta-line works-grid__meta-line--title">{work.title}</p>}
                     {(work.details ?? []).length > 0 ? (
                       (work.details ?? []).map((detail, detailIndex) => (
-                        <p key={`${work.id}-${detail.key}-${detailIndex}`} className="works-grid__meta-line">
-                          <span className="works-grid__meta-key">{detail.key}:</span> {detail.value}
+                        <p key={`${work.id}-detail-${detailIndex}`} className="works-grid__meta-line">
+                          {detail}
                         </p>
                       ))
                     ) : (
@@ -813,15 +804,18 @@ const WorksPage: React.FC = () => {
           <div className="work-modal__dialog">
             <button className="work-modal__close" onClick={() => setSelectedWork(null)} aria-label="Закрыть">×</button>
             <div className="work-modal__image">
-              <img src={selectedImageUrl} alt={selectedWork.title} />
+              <img src={selectedImageUrl} alt={selectedWork.title.trim() || 'Работа'} />
             </div>
             <div className="work-modal__info">
               <span className="work-modal__counter">{currentIndex + 1} из {works.length}</span>
+              {selectedWork.title.trim() && (
+                <p className="work-modal__meta-line work-modal__meta-line--title">{selectedWork.title}</p>
+              )}
               {(selectedWork.details ?? []).length > 0 && (
                 <div className="work-modal__meta">
                   {(selectedWork.details ?? []).map((detail, detailIndex) => (
-                    <p key={`${selectedWork.id}-${detail.key}-${detailIndex}`} className="work-modal__meta-line">
-                      <span className="work-modal__meta-key">{detail.key}:</span> {detail.value}
+                    <p key={`${selectedWork.id}-detail-${detailIndex}`} className="work-modal__meta-line">
+                      {detail}
                     </p>
                   ))}
                 </div>
@@ -838,24 +832,24 @@ const WorksPage: React.FC = () => {
             <button className="work-modal__close" onClick={closeWorkDetailsModal} aria-label="Закрыть">×</button>
             <h2 className="work-modal__title">Параметры работы</h2>
             <form className="admin-form" onSubmit={onSaveWorkDetails}>
+              <label className="admin-form__field">
+                Название
+                <input
+                  value={editingWorkTitle}
+                  maxLength={160}
+                  placeholder="Необязательно"
+                  onChange={(event) => setEditingWorkTitle(event.target.value)}
+                />
+              </label>
               {workDetailsDraft.map((row, index) => (
                 <div key={`detail-row-${index}`} className="works-page__detail-row">
                   <label className="admin-form__field">
-                    Ключ
+                    Параметр
                     <input
-                      value={row.key}
-                      maxLength={60}
-                      placeholder="Например: Размер"
-                      onChange={(event) => updateDraftRow(index, 'key', event.target.value)}
-                    />
-                  </label>
-                  <label className="admin-form__field">
-                    Значение
-                    <input
-                      value={row.value}
+                      value={row}
                       maxLength={200}
-                      placeholder="Например: 60x100"
-                      onChange={(event) => updateDraftRow(index, 'value', event.target.value)}
+                      placeholder="Например: Размер 60x100"
+                      onChange={(event) => updateDraftRow(index, event.target.value)}
                     />
                   </label>
                   <button

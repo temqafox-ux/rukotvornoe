@@ -119,14 +119,19 @@ const readDbSync = (db: Database.Database): DatabaseRecord => ({
         if (!Array.isArray(value)) return [];
         return value
           .map((item) => {
+            if (typeof item === 'string') {
+              const text = item.trim();
+              return text || null;
+            }
+
             if (!item || typeof item !== 'object') return null;
             const candidate = item as Record<string, unknown>;
             const key = typeof candidate.key === 'string' ? candidate.key.trim() : '';
             const detailValue = typeof candidate.value === 'string' ? candidate.value.trim() : '';
             if (!key || !detailValue) return null;
-            return { key, value: detailValue };
+            return `${key}: ${detailValue}`;
           })
-          .filter((item): item is { key: string; value: string } => Boolean(item));
+          .filter((item): item is string => Boolean(item));
       } catch {
         return [];
       }

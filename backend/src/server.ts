@@ -92,21 +92,11 @@ const folderSchema = z.object({
   title: z.string().trim().min(2)
 });
 
-const workDetailsSchema = z.array(
-  z.object({
-    key: z.string().trim().min(1).max(60),
-    value: z.string().trim().min(1).max(200)
-  })
-).max(12);
+const workDetailsSchema = z.array(z.string().trim().min(1).max(200)).max(12);
 
 const workUpdateSchema = z.object({
-  title: z.string().trim().min(1).max(160),
-  details: z.array(
-    z.object({
-      key: z.string().trim().min(1).max(60),
-      value: z.string().trim().min(1).max(200)
-    })
-  ).max(12)
+  title: z.string().trim().max(160),
+  details: z.array(z.string().trim().min(1).max(200)).max(12)
 });
 
 const reorderSchema = z.object({
@@ -279,7 +269,7 @@ const saveUpload = async (file: Express.Multer.File) => {
 
 const parseWorkDetails = (raw: unknown) => {
   if (raw === undefined || raw === null || raw === '') {
-    return { success: true as const, data: [] as Array<{ key: string; value: string }> };
+    return { success: true as const, data: [] as string[] };
   }
 
   if (typeof raw !== 'string') {
@@ -288,7 +278,17 @@ const parseWorkDetails = (raw: unknown) => {
 
   try {
     const parsed = JSON.parse(raw) as unknown;
-    const result = workDetailsSchema.safeParse(parsed);
+    const normalized = Array.isArray(parsed)
+      ? parsed.map((item) => {
+          if (typeof item === 'string') return item.trim();
+          if (!item || typeof item !== 'object') return '';
+          const candidate = item as Record<string, unknown>;
+          const key = typeof candidate.key === 'string' ? candidate.key.trim() : '';
+          const value = typeof candidate.value === 'string' ? candidate.value.trim() : '';
+          return key && value ? `${key}: ${value}` : '';
+        }).filter(Boolean)
+      : parsed;
+    const result = workDetailsSchema.safeParse(normalized);
     if (!result.success) {
       return { success: false as const };
     }
@@ -611,7 +611,7 @@ app.post('/api/admin/folders/:id/works/upload', upload.array('files', 20), async
         const work: WorkRecord = {
           id: createId('work'),
           folderId: folder.id,
-          title: String(req.body[`title_${index}`] ?? file.originalname.replace(/\.[^.]+$/, '')),
+          title: '',
           imageUrl: await saveUpload(file),
           details: [],
           sortOrder: nextSortOrder,

@@ -9,19 +9,24 @@ const passwordSaltRounds = Math.max(8, Math.min(Number(process.env.PASSWORD_SALT
 
 const asString = (value: unknown, fallback = '') => (typeof value === 'string' && value.trim() ? value : fallback);
 const asNumber = (value: unknown, fallback = 0) => (typeof value === 'number' && Number.isFinite(value) ? value : fallback);
-const asDetails = (value: unknown): Array<{ key: string; value: string }> => {
+const asDetails = (value: unknown): string[] => {
   if (!Array.isArray(value)) return [];
 
   return value
     .map((item) => {
+      if (typeof item === 'string') {
+        const text = item.trim();
+        return text || null;
+      }
+
       if (!item || typeof item !== 'object') return null;
       const candidate = item as Record<string, unknown>;
       const key = asString(candidate.key).trim();
       const detailValue = asString(candidate.value).trim();
       if (!key || !detailValue) return null;
-      return { key, value: detailValue };
+      return `${key}: ${detailValue}`;
     })
-    .filter((item): item is { key: string; value: string } => Boolean(item));
+    .filter((item): item is string => Boolean(item));
 };
 
 const toAdminUser = (value: unknown): AdminUser | null => {
@@ -80,10 +85,10 @@ const toWorkRecord = (value: unknown): WorkRecord | null => {
 
   const id = asString(item.id);
   const folderId = asString(item.folderId);
-  const title = asString(item.title);
+  const title = typeof item.title === 'string' ? item.title.trim() : '';
   const imageUrl = asString(item.imageUrl);
 
-  if (!id || !folderId || !title || !imageUrl) return null;
+  if (!id || !folderId || !imageUrl) return null;
 
   return {
     id,

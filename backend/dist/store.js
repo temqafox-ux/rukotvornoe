@@ -105,6 +105,10 @@ const readDbSync = (db) => ({
                     return [];
                 return value
                     .map((item) => {
+                    if (typeof item === 'string') {
+                        const text = item.trim();
+                        return text || null;
+                    }
                     if (!item || typeof item !== 'object')
                         return null;
                     const candidate = item;
@@ -112,7 +116,7 @@ const readDbSync = (db) => ({
                     const detailValue = typeof candidate.value === 'string' ? candidate.value.trim() : '';
                     if (!key || !detailValue)
                         return null;
-                    return { key, value: detailValue };
+                    return `${key}: ${detailValue}`;
                 })
                     .filter((item) => Boolean(item));
             }

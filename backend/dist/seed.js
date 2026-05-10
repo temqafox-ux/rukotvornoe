@@ -11,6 +11,10 @@ const asDetails = (value) => {
         return [];
     return value
         .map((item) => {
+        if (typeof item === 'string') {
+            const text = item.trim();
+            return text || null;
+        }
         if (!item || typeof item !== 'object')
             return null;
         const candidate = item;
@@ -18,7 +22,7 @@ const asDetails = (value) => {
         const detailValue = asString(candidate.value).trim();
         if (!key || !detailValue)
             return null;
-        return { key, value: detailValue };
+        return `${key}: ${detailValue}`;
     })
         .filter((item) => Boolean(item));
 };
@@ -73,9 +77,9 @@ const toWorkRecord = (value) => {
     const item = value;
     const id = asString(item.id);
     const folderId = asString(item.folderId);
-    const title = asString(item.title);
+    const title = typeof item.title === 'string' ? item.title.trim() : '';
     const imageUrl = asString(item.imageUrl);
-    if (!id || !folderId || !title || !imageUrl)
+    if (!id || !folderId || !imageUrl)
         return null;
     return {
         id,

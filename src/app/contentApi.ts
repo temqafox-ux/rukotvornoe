@@ -14,10 +14,7 @@ export interface Work {
   id: string;
   title: string;
   imageUrl: string;
-  details: Array<{
-    key: string;
-    value: string;
-  }>;
+  details: string[];
   sortOrder: number;
 }
 

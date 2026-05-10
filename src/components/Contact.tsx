@@ -34,12 +34,42 @@ const Contact: React.FC = () => {
             </svg>
             <a href="mailto:elfin.v@gmail.com">elfin.v@gmail.com</a>
           </div>
-
-          <div className="contact__socials">
+          <div className="contact__item">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M21 3L1 10l7 3m13-10l-7 14-6-7m13-7l-13 7" />
+            </svg>
+            <a
+              href="https://t.me/Yana_suchilina"
+              onClick={(event) => {
+                event.preventDefault();
+                openAppOrWeb('tg://resolve?domain=Yana_suchilina', 'https://t.me/Yana_suchilina');
+              }}
+            >
+              Telegram: личный
+            </a>
+          </div>
+          <div className="contact__item">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M21 3L1 10l7 3m13-10l-7 14-6-7m13-7l-13 7" />
+            </svg>
+            <a
+              href="https://t.me/rukotvornoe_yana"
+              onClick={(event) => {
+                event.preventDefault();
+                openAppOrWeb('tg://resolve?domain=rukotvornoe_yana', 'https://t.me/rukotvornoe_yana');
+              }}
+            >
+              Telegram: канал
+            </a>
+          </div>
+          <div className="contact__item">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <rect x="2" y="2" width="20" height="20" rx="5" />
+              <circle cx="12" cy="12" r="5" />
+              <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
+            </svg>
             <a
               href="https://instagram.com/gulyai_shalnaya"
-              className="contact__social-link"
-              aria-label="Instagram"
               onClick={(event) => {
                 event.preventDefault();
                 openAppOrWeb(
@@ -48,26 +78,10 @@ const Contact: React.FC = () => {
                 );
               }}
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <rect x="2" y="2" width="20" height="20" rx="5" />
-                <circle cx="12" cy="12" r="5" />
-                <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
-              </svg>
-            </a>
-            <a
-              href="https://t.me/Yana_suchilina"
-              className="contact__social-link"
-              aria-label="Telegram"
-              onClick={(event) => {
-                event.preventDefault();
-                openAppOrWeb('tg://resolve?domain=Yana_suchilina', 'https://t.me/Yana_suchilina');
-              }}
-            >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M21 3L1 10l7 3m13-10l-7 14-6-7m13-7l-13 7" />
-              </svg>
+              Instagram
             </a>
           </div>
+
         </div>
       </div>
 

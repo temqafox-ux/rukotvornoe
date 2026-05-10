@@ -94,7 +94,19 @@ const HomePage: React.FC = () => {
                 openAppOrWeb('tg://resolve?domain=Yana_suchilina', 'https://t.me/Yana_suchilina');
               }}
             >
-              Telegram
+              Telegram: личный
+            </a>
+            <a
+              className="home-contact-cta__link"
+              role="menuitem"
+              href="https://t.me/rukotvornoe_yana"
+              onClick={(event) => {
+                event.preventDefault();
+                setIsContactMenuOpen(false);
+                openAppOrWeb('tg://resolve?domain=rukotvornoe_yana', 'https://t.me/rukotvornoe_yana');
+              }}
+            >
+              Telegram: канал
             </a>
             <a
               className="home-contact-cta__link"

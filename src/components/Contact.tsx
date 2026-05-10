@@ -55,12 +55,12 @@ const Contact: React.FC = () => {
               </svg>
             </a>
             <a
-              href="https://t.me/rukotvornoe_yana"
+              href="https://t.me/Yana_suchilina"
               className="contact__social-link"
               aria-label="Telegram"
               onClick={(event) => {
                 event.preventDefault();
-                openAppOrWeb('tg://resolve?domain=rukotvornoe_yana', 'https://t.me/rukotvornoe_yana');
+                openAppOrWeb('tg://resolve?domain=Yana_suchilina', 'https://t.me/Yana_suchilina');
               }}
             >
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">

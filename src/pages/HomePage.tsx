@@ -87,11 +87,11 @@ const HomePage: React.FC = () => {
             <a
               className="home-contact-cta__link"
               role="menuitem"
-              href="https://t.me/rukotvornoe_yana"
+              href="https://t.me/Yana_suchilina"
               onClick={(event) => {
                 event.preventDefault();
                 setIsContactMenuOpen(false);
-                openAppOrWeb('tg://resolve?domain=rukotvornoe_yana', 'https://t.me/rukotvornoe_yana');
+                openAppOrWeb('tg://resolve?domain=Yana_suchilina', 'https://t.me/Yana_suchilina');
               }}
             >
               Telegram

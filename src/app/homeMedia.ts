@@ -1,6 +1,4 @@
-const defaultCdnBaseUrl = 'https://pub-46a91d1be05a49dabd282278daa1ee5f.r2.dev';
-
-const normalizedBaseUrl = (process.env.REACT_APP_CDN_BASE_URL ?? defaultCdnBaseUrl).replace(/\/+$/, '');
+const normalizedBaseUrl = (process.env.REACT_APP_MEDIA_BASE_URL ?? '').replace(/\/+$/, '');
 
 export const homeMedia = {
   authorPhoto: `${normalizedBaseUrl}/images/photo.jpg`,

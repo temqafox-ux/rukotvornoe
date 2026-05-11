@@ -1,5 +1,4 @@
 import 'dotenv/config';
-import { DeleteObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { compareSync, hashSync } from 'bcryptjs';
 import cors from 'cors';
 import express from 'express';
@@ -37,22 +36,6 @@ const uploadQuality = Math.max(60, Math.min(Number(process.env.UPLOAD_QUALITY ??
 const passwordSaltRounds = Math.max(8, Math.min(Number(process.env.PASSWORD_SALT_ROUNDS ?? 10), 14));
 const loginRateLimitWindowMs = Math.max(60_000, Number(process.env.LOGIN_RATE_LIMIT_WINDOW_MS ?? 15 * 60_000));
 const loginRateLimitAttempts = Math.max(3, Number(process.env.LOGIN_RATE_LIMIT_ATTEMPTS ?? 10));
-const r2AccountId = process.env.R2_ACCOUNT_ID;
-const r2Bucket = process.env.R2_BUCKET;
-const r2AccessKeyId = process.env.R2_ACCESS_KEY_ID;
-const r2SecretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
-const r2PublicBaseUrl = process.env.R2_PUBLIC_BASE_URL?.replace(/\/+$/, '');
-const isR2Enabled = Boolean(r2AccountId && r2Bucket && r2AccessKeyId && r2SecretAccessKey && r2PublicBaseUrl);
-const r2Client = isR2Enabled
-    ? new S3Client({
-        region: 'auto',
-        endpoint: `https://${r2AccountId}.r2.cloudflarestorage.com`,
-        credentials: {
-            accessKeyId: r2AccessKeyId,
-            secretAccessKey: r2SecretAccessKey
-        }
-    })
-    : null;
 const publicDir = path.resolve(process.cwd(), '..', 'public');
 const loginAttemptMap = new Map();
 app.set('trust proxy', trustProxyHops);
@@ -141,22 +124,8 @@ const requireAdmin = async (authorization) => {
     };
 };
 const isSystemImage = (url) => url.startsWith('/images/');
-const extractR2Key = (url) => {
-    if (!r2PublicBaseUrl || !url.startsWith(`${r2PublicBaseUrl}/`)) {
-        return null;
-    }
-    return url.slice(r2PublicBaseUrl.length + 1);
-};
 const deleteAsset = async (assetUrl) => {
     if (!assetUrl || isSystemImage(assetUrl)) {
-        return;
-    }
-    const r2Key = extractR2Key(assetUrl);
-    if (r2Key && r2Client && r2Bucket) {
-        await r2Client.send(new DeleteObjectCommand({
-            Bucket: r2Bucket,
-            Key: r2Key
-        }));
         return;
     }
     if (assetUrl.startsWith('/uploads/')) {
@@ -201,17 +170,6 @@ const saveUpload = async (file) => {
     })
         .webp({ quality: uploadQuality })
         .toBuffer();
-    if (isR2Enabled && r2Client && r2Bucket && r2PublicBaseUrl) {
-        const key = `uploads/${filename}`;
-        await r2Client.send(new PutObjectCommand({
-            Bucket: r2Bucket,
-            Key: key,
-            Body: optimizedBuffer,
-            ContentType: 'image/webp',
-            CacheControl: 'public, max-age=31536000, immutable'
-        }));
-        return `${r2PublicBaseUrl}/${key}`;
-    }
     const destination = path.join(getUploadsDir(), filename);
     await fs.writeFile(destination, optimizedBuffer);
     return `/uploads/${filename}`;
